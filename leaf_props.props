@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets">
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros">
+    <BUILD_SFX />
+    <BUILD_MODE>$(Configuration)</BUILD_MODE>
+    <VLIB_P_ROOT>$(VLIB_ROOT)\$(Platform)</VLIB_P_ROOT>
+    <ACE_ROOT>$(VLIB_P_ROOT)\ACE_wrappers</ACE_ROOT>
+    <ACE_INC>$(ACE_ROOT)</ACE_INC>
+    <ACE_LIB>$(ACE_ROOT)\lib</ACE_LIB>
+    <ACE_BIN>$(ACE_ROOT)\bin</ACE_BIN>
+    <TAO_ROOT>$(ACE_ROOT)\TAO</TAO_ROOT>
+    <SQLAPI_ROOT>$(VLIB_P_ROOT)\SQLAPI</SQLAPI_ROOT>
+    <SQLAPI_INC>$(SQLAPI_ROOT)\include</SQLAPI_INC>
+    <SQLAPI_LIB>$(SQLAPI_ROOT)\lib</SQLAPI_LIB>
+    <SQLAPI_BIN>$(SQLAPI_ROOT)\bin</SQLAPI_BIN>
+    <TAO_ORBSVCS>$(TAO_ROOT)\orbsvcs</TAO_ORBSVCS>
+    <XERCES_ROOT>$(VLIB_P_ROOT)\xerces</XERCES_ROOT>
+    <XERCES_BIN>$(XERCES_ROOT)\bin</XERCES_BIN>
+    <XERCES_INC>$(XERCES_ROOT)\include</XERCES_INC>
+    <XERCES_LIB>$(XERCES_ROOT)\lib</XERCES_LIB>
+    <QUICKFIX_ROOT>$(VLIB_P_ROOT)\quickfix</QUICKFIX_ROOT>
+    <QUICKFIX_LIB>$(QUICKFIX_ROOT)\lib</QUICKFIX_LIB>
+    <QUICKFIX_INC>$(QUICKFIX_ROOT)\include</QUICKFIX_INC>
+    <GSL_ROOT>$(VLIB_P_ROOT)\gsl-1.16</GSL_ROOT>
+    <GSL_INC>$(GSL_ROOT)\include</GSL_INC>
+    <GSL_LIB>$(GSL_ROOT)\lib</GSL_LIB>
+    <GSL_BIN>$(GSL_ROOT)\bin</GSL_BIN>
+    <ZNET_ROOT>$(Z_PRODUCT)\ZNET</ZNET_ROOT>
+    <ZINSTALL_ROOT>$(Z_PRODUCT)\ZIRCOMP_INSTALL</ZINSTALL_ROOT>
+    <ZNET_INSTALL>$(ZINSTALL_ROOT)\$(Platform)</ZNET_INSTALL>
+    <ZNET_INC>$(ZNET_ROOT)</ZNET_INC>
+    <ZNET_BIN>$(ZNET_INSTALL)\bin</ZNET_BIN>
+    <ZNET_LIB>$(ZNET_INSTALL)\lib</ZNET_LIB>
+    <PROJECTS_ROOT>$(Z_PRODUCT)\LEAF</PROJECTS_ROOT>
+    <PROJECTS_INC>$(PROJECTS_ROOT)</PROJECTS_INC>
+    <PROJECTS_BIN>$(PROJECTS_ROOT)\bin</PROJECTS_BIN>
+    <PROJECTS_LIB>$(PROJECTS_ROOT)\lib</PROJECTS_LIB>
+    <CUSTOM_DEFINES />
+  </PropertyGroup>
+  <PropertyGroup>
+    <_ProjectFileVersion>12.0.30501.0</_ProjectFileVersion>
+    <_PropertySheetDisplayName>znet_projects</_PropertySheetDisplayName>
+    <OutDir>$(ZNET_BIN)\</OutDir>
+    <IntDir>$(ProjectName)_$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(PROJECTS_INC)
+      ;$(ZNET_INC)
+      ;$(ACE_INC)
+      ;$(TAO_ROOT)
+      ;$(TAO_ROOT)/orbsvcs
+      ;$(GSL_INC);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>$(CUSTOM_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <Link>
+      <OutputFile>$(OutDir)$(ProjectName)$(BUILD_SFX).exe</OutputFile>
+      <AdditionalDependencies>znet$(BUILD_SFX).lib;ace$(BUILD_SFX).lib;TAO$(BUILD_SFX).lib;TAO_IORTable$(BUILD_SFX).lib;TAO_SmartProxies$(BUILD_SFX).lib;TAO_AnyTypeCode$(BUILD_SFX).lib;TAO_CosNaming$(BUILD_SFX).lib;TAO_PortableServer$(BUILD_SFX).lib;TAO_CosNaming_Skel$(BUILD_SFX).lib;TAO_Valuetype$(BUILD_SFX).lib;TAO_CodecFactory$(BUILD_SFX).lib;TAO_PI$(BUILD_SFX).lib;TAO_Messaging$(BUILD_SFX).lib;TAO_Svc_Utils$(BUILD_SFX).lib;TAO_CosNaming_Serv$(BUILD_SFX).lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ZNET_LIB)
+      ;$(PROJECTS_LIB)
+      ;$(PROJECTS_BIN)
+      ;$(ACE_LIB)
+      ;$(GSL_LIB);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ImportLibrary>$(PROJECTS_LIB)/$(ProjectName)$(BUILD_SFX).lib</ImportLibrary>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BuildMacro Include="BUILD_SFX">
+      <Value>$(BUILD_SFX)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="BUILD_MODE">
+      <Value>$(BUILD_MODE)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="VLIB_P_ROOT">
+      <Value>$(VLIB_P_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ACE_ROOT">
+      <Value>$(ACE_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ACE_INC">
+      <Value>$(ACE_INC)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ACE_LIB">
+      <Value>$(ACE_LIB)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ACE_BIN">
+      <Value>$(ACE_BIN)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="TAO_ROOT">
+      <Value>$(TAO_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="SQLAPI_ROOT">
+      <Value>$(SQLAPI_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="SQLAPI_INC">
+      <Value>$(SQLAPI_INC)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="SQLAPI_LIB">
+      <Value>$(SQLAPI_LIB)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="SQLAPI_BIN">
+      <Value>$(SQLAPI_BIN)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="TAO_ORBSVCS">
+      <Value>$(TAO_ORBSVCS)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="XERCES_ROOT">
+      <Value>$(XERCES_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="XERCES_BIN">
+      <Value>$(XERCES_BIN)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="XERCES_INC">
+      <Value>$(XERCES_INC)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="XERCES_LIB">
+      <Value>$(XERCES_LIB)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="QUICKFIX_ROOT">
+      <Value>$(QUICKFIX_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="QUICKFIX_LIB">
+      <Value>$(QUICKFIX_LIB)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="QUICKFIX_INC">
+      <Value>$(QUICKFIX_INC)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="GSL_ROOT">
+      <Value>$(GSL_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="GSL_INC">
+      <Value>$(GSL_INC)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="GSL_LIB">
+      <Value>$(GSL_LIB)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="GSL_BIN">
+      <Value>$(GSL_BIN)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ZNET_ROOT">
+      <Value>$(ZNET_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ZINSTALL_ROOT">
+      <Value>$(ZINSTALL_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ZNET_INSTALL">
+      <Value>$(ZNET_INSTALL)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ZNET_INC">
+      <Value>$(ZNET_INC)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ZNET_BIN">
+      <Value>$(ZNET_BIN)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="ZNET_LIB">
+      <Value>$(ZNET_LIB)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PROJECTS_ROOT">
+      <Value>$(PROJECTS_ROOT)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PROJECTS_INC">
+      <Value>$(PROJECTS_INC)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PROJECTS_BIN">
+      <Value>$(PROJECTS_BIN)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PROJECTS_LIB">
+      <Value>$(PROJECTS_LIB)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="CUSTOM_DEFINES">
+      <Value>$(CUSTOM_DEFINES)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

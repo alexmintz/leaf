@@ -1,0 +1,341 @@
+#======== GUI Settings ============================#
+#==================================================#
+
+LFGUI:hwm 250
+LFGUI:lwm 249
+LFGUI:total_points 9000
+
+LFGUI:show_charge_level 	true
+LFGUI:RENDER     		2
+LFGUI:BITMAPGRADIENTMODE	false
+LFGUI:HORZANDVERTZOOM		false
+
+#1-100
+LFGUI:SPEEDBOOST		40
+
+# 0-12
+LFGUI:QUICKSTYLE		2
+
+#--------------------
+# TABLES
+#--------------------
+# LOCATION : 0-16, 100-105,  200-205, 300, 400-405
+# MOVEABLE : 0-3
+#--------------------
+# HLOC
+#
+LFGUI:HLOC:TALOCATION		16
+LFGUI:HLOC:TAMOVEABLE		1
+LFGUI:scope_tables		0,1,2,3,4,5,6
+
+LFGUI:0:Leader:FONTCOLOR	Blue	
+LFGUI:0:Follower:FONTCOLOR	Black	
+LFGUI:0:Trading:FONTCOLOR	Black	
+#--------------------
+# Wave 
+#
+LFGUI:1:TALOCATION		4
+LFGUI:1:TAMOVEABLE		0
+#--------------------
+# Visibility
+#
+LFGUI:2:TALOCATION		16
+LFGUI:2:TAMOVEABLE		1
+
+# 
+#LFGUI:2:EXCLUDE_SUBSET		P Charge|p, P Exp|x, P End, Trans
+LFGUI:2:EXCLUDE_SUBSET		P Exp|x, P End, Trans, Correlation|C
+#LFGUI:2:EXCLUDE_SUBSET		P Exp|x, P End, Trans
+
+#LFGUI:2:EXCLUDE_GROUP		P&L,fE0,fE1,fE2,fE3,fE4,ENERGY,ECHARGE,PCHARGE			
+#LFGUI:2:EXCLUDE_GROUP		fE0,fE1,fE2,fE3,fE4,ENERGY,ECHARGE,PCHARGE			
+#LFGUI:2:EXCLUDE_GROUP		fE0,fE1,fE2,fE3,fE4,fT0,fT1,fT2,fT3,fT4,fT5,fP0,fP1,fP2,fP3,fP4,fP5,ENERGY,ECHARGE,PCHARGE			
+LFGUI:2:EXCLUDE_GROUP		fE0,fE1,fE2,fE4,fE5,fT0,fT1,fT2,fT3,fT4,fT5,fP0,fP1,fP2,fP3,fP4,fP5,fVolDen0,fVolDen1,fVolDen2,fVolDen3,fVolDen4,fVolDen5,ENERGY,ECHARGE,PCHARGE,SCOPE
+
+#--------------------
+# Scope
+#
+LFGUI:scope_table_num 2
+LFGUI:3:TALOCATION		16
+LFGUI:3:TAMOVEABLE		1
+LFGUI:4:TALOCATION		16
+LFGUI:4:TAMOVEABLE		1
+#----------------------------------------------------
+^LFModel:LFGUI:show_roll_slopes		true
+^LFModel:LFGUI:show_charge_on_scope  1001
+^LFModel:LFGUI:show_charge_annot        true
+^LFModel:LFGUI:show_t_vol     		true
+
+#-------- HLOC Panel
+LFGUI:Panel:roll_scale_index	2
+
+LFGUI:Panel:HLOC:on			true
+LFGUI:Panel:HLOC:min_zoom 		.10
+LFGUI:Panel:HLOC:pct_zoom		10
+
+LFGUI:Panel:HLOC:leader:on		0
+LFGUI:Panel:HLOC:leader:expected:on	0
+LFGUI:Panel:HLOC:leader:trend:on	0
+
+LFGUI:Panel:HLOC:follower:on		1
+LFGUI:Panel:HLOC:follower:expected:on	1
+LFGUI:Panel:HLOC:follower:trend:on	1
+
+LFGUI:Panel:HLOC:follower:dyn_expected  1
+
+LFGUI:Panel:PNL:ann_group		pnl
+LFGUI:Panel:PNL:ann_group:on		1
+
+LFGUI:Panel:fE0:ann_group:v:on		0
+LFGUI:Panel:fE1:ann_group:v:on		0
+LFGUI:Panel:fE2:ann_group:v:on		0
+LFGUI:Panel:fE3:ann_group:v:on		0
+LFGUI:Panel:fE4:ann_group:v:on		0
+LFGUI:Panel:fE5:ann_group:v:on		0
+
+# Line Colors for Expectation
+# --------------------------------------------------------
+#
+#
+# Follower
+# 0
+
+LFGUI:Panel:HLOC:expected_color:follower:0:0	Black
+LFGUI:Panel:HLOC:expected_color:follower:0:1	Black
+LFGUI:Panel:HLOC:expected_color:follower:0:2	Magenta
+LFGUI:Panel:HLOC:expected_color:follower:0:3	Magenta
+
+LFGUI:Panel:HLOC:expected_line:follower:0:0	2
+LFGUI:Panel:HLOC:expected_line:follower:0:1	0
+LFGUI:Panel:HLOC:expected_line:follower:0:2	2
+LFGUI:Panel:HLOC:expected_line:follower:0:3	0
+
+LFGUI:Panel:HLOC:expected_annot:follower:0	2
+LFGUI:Panel:HLOC:expected_annot:follower:1	3
+LFGUI:Panel:HLOC:expected_annot:follower:2	17
+LFGUI:Panel:HLOC:expected_annot:follower:3	18
+LFGUI:Panel:HLOC:expected_annot:follower:4	2
+LFGUI:Panel:HLOC:expected_annot:follower:5	3
+
+
+# 1
+
+LFGUI:Panel:HLOC:expected_color:follower:1:0	Blue
+LFGUI:Panel:HLOC:expected_color:follower:1:1	Blue
+LFGUI:Panel:HLOC:expected_color:follower:1:2	Brown
+LFGUI:Panel:HLOC:expected_color:follower:1:3	Brown
+
+LFGUI:Panel:HLOC:expected_line:follower:1:0	2
+LFGUI:Panel:HLOC:expected_line:follower:1:1	0
+LFGUI:Panel:HLOC:expected_line:follower:1:2	2
+LFGUI:Panel:HLOC:expected_line:follower:1:3	0
+
+# 2
+
+LFGUI:Panel:HLOC:expected_color:follower:2:0	Green
+LFGUI:Panel:HLOC:expected_color:follower:2:1	Green
+LFGUI:Panel:HLOC:expected_color:follower:2:2	Red
+LFGUI:Panel:HLOC:expected_color:follower:2:3	Red
+
+LFGUI:Panel:HLOC:expected_line:follower:2:0	2
+LFGUI:Panel:HLOC:expected_line:follower:2:1	0
+LFGUI:Panel:HLOC:expected_line:follower:2:2	2
+LFGUI:Panel:HLOC:expected_line:follower:2:3	0
+
+# 3
+
+LFGUI:Panel:HLOC:expected_color:follower:3:0	Black
+LFGUI:Panel:HLOC:expected_color:follower:3:1	Black
+LFGUI:Panel:HLOC:expected_color:follower:3:2	Magenta
+LFGUI:Panel:HLOC:expected_color:follower:3:3	Magenta
+
+LFGUI:Panel:HLOC:expected_line:follower:3:0	17
+LFGUI:Panel:HLOC:expected_line:follower:3:1	9
+LFGUI:Panel:HLOC:expected_line:follower:3:2	17
+LFGUI:Panel:HLOC:expected_line:follower:3:3	9
+
+# 4
+
+LFGUI:Panel:HLOC:expected_color:follower:4:0	Blue
+LFGUI:Panel:HLOC:expected_color:follower:4:1	Blue
+LFGUI:Panel:HLOC:expected_color:follower:4:2	Brown
+LFGUI:Panel:HLOC:expected_color:follower:4:3	Brown
+
+LFGUI:Panel:HLOC:expected_line:follower:4:0	17
+LFGUI:Panel:HLOC:expected_line:follower:4:1	9
+LFGUI:Panel:HLOC:expected_line:follower:4:2	17
+LFGUI:Panel:HLOC:expected_line:follower:4:3	9
+
+# 5
+
+LFGUI:Panel:HLOC:expected_color:follower:5:0	Green
+LFGUI:Panel:HLOC:expected_color:follower:5:1	Green
+LFGUI:Panel:HLOC:expected_color:follower:5:2	Red
+LFGUI:Panel:HLOC:expected_color:follower:5:3	Red
+
+LFGUI:Panel:HLOC:expected_line:follower:5:0	17
+LFGUI:Panel:HLOC:expected_line:follower:5:1	9
+LFGUI:Panel:HLOC:expected_line:follower:5:2	17
+LFGUI:Panel:HLOC:expected_line:follower:5:3	9
+
+# Line Colors for Trends
+# --------------------------------------------------------
+#
+# Follower
+# --------
+#
+# 0
+
+LFGUI:Panel:HLOC:trend_color:follower:0:0	Black
+LFGUI:Panel:HLOC:trend_color:follower:0:1	Black
+LFGUI:Panel:HLOC:trend_color:follower:0:2	Magenta
+LFGUI:Panel:HLOC:trend_color:follower:0:3	Magenta
+
+# 1
+
+LFGUI:Panel:HLOC:trend_color:follower:1:0	Blue
+LFGUI:Panel:HLOC:trend_color:follower:1:1	Blue
+LFGUI:Panel:HLOC:trend_color:follower:1:2	Brown
+LFGUI:Panel:HLOC:trend_color:follower:1:3	Brown
+
+# 2
+
+LFGUI:Panel:HLOC:trend_color:follower:2:0	Green
+LFGUI:Panel:HLOC:trend_color:follower:2:1	Green
+LFGUI:Panel:HLOC:trend_color:follower:2:2	Red
+LFGUI:Panel:HLOC:trend_color:follower:2:3	Red
+
+# 3
+
+LFGUI:Panel:HLOC:trend_color:follower:3:0	Black
+LFGUI:Panel:HLOC:trend_color:follower:3:1	Black
+LFGUI:Panel:HLOC:trend_color:follower:3:2	Magenta
+LFGUI:Panel:HLOC:trend_color:follower:3:3	Magenta
+
+# 4
+
+LFGUI:Panel:HLOC:trend_color:follower:4:0	Blue
+LFGUI:Panel:HLOC:trend_color:follower:4:1	Blue
+LFGUI:Panel:HLOC:trend_color:follower:4:2	Brown
+LFGUI:Panel:HLOC:trend_color:follower:4:3	Brown
+
+# 5
+
+LFGUI:Panel:HLOC:trend_color:follower:5:0	Green
+LFGUI:Panel:HLOC:trend_color:follower:5:1	Green
+LFGUI:Panel:HLOC:trend_color:follower:5:2	Red
+LFGUI:Panel:HLOC:trend_color:follower:5:3	Red
+
+#-------- ENERGY Panel
+
+LFGUI:Panel:ENERGY:on	1
+LFGUI:Panel:ENERGY:Energy_color	Crimson
+LFGUI:Panel:ENERGY:EActivity_color	ForestGreen
+LFGUI:Panel:ENERGY:PActivity_color	Magenta
+LFGUI:Panel:ENERGY:Correlation_color	Black
+LFGUI:Panel:ENERGY:ESlope_color	Blue
+LFGUI:Panel:ENERGY:PSlope_color	FireBrick
+
+LFGUI:Panel:ENERGY:1:ann_group			level
+LFGUI:Panel:ENERGY:1:ann_group:on		1
+LFGUI:Panel:ENERGY:1:ann_group:g:on		1
+
+LFGUI:Panel:ENERGY:2:ann_group			exec
+LFGUI:Panel:ENERGY:2:ann_group:on		1
+
+LFGUI:Panel:ENERGY:3:ann_group			ch_end
+LFGUI:Panel:ENERGY:3:ann_group:on		1
+LFGUI:Panel:ENERGY:3:ann_group:v:on		0
+
+LFGUI:Panel:ENERGY:4:ann_group			0_conf
+LFGUI:Panel:ENERGY:4:ann_group:on		1
+LFGUI:Panel:ENERGY:4:ann_group:v:on		0
+
+#-------- Energy CHARGE Panel
+
+LFGUI:Panel:ECHARGE:on	1
+
+LFGUI:Panel:ECHARGE:ECharge_color	ForestGreen
+#LFGUI:Panel:ECHARGE:EBias_color	Blue
+LFGUI:Panel:ECHARGE:EStart_color	Magenta
+
+LFGUI:Panel:ECHARGE:show_vias		true
+
+LFGUI:Panel:ECHARGE:bias_color:follower:0	Magenta
+LFGUI:Panel:ECHARGE:bias_color:follower:1	Brown
+LFGUI:Panel:ECHARGE:bias_color:follower:2	Red
+LFGUI:Panel:ECHARGE:bias_color:follower:3	Magenta
+LFGUI:Panel:ECHARGE:bias_color:follower:4	Brown
+LFGUI:Panel:ECHARGE:bias_color:follower:5	Red
+	    ECHARGE
+LFGUI:Panel:ECHARGE:bias_line:follower:0	0
+LFGUI:Panel:ECHARGE:bias_line:follower:1	0
+LFGUI:Panel:ECHARGE:bias_line:follower:2	0
+LFGUI:Panel:ECHARGE:bias_line:follower:3	9
+LFGUI:Panel:ECHARGE:bias_line:follower:4	9
+LFGUI:Panel:ECHARGE:bias_line:follower:5	9
+
+#-------- Price CHARGE Panel
+
+LFGUI:Panel:PCHARGE:on	1
+LFGUI:Panel:PCHARGE:dyn_pias	  1
+
+LFGUI:Panel:PCHARGE:PCharge_color	ForestGreen
+
+LFGUI:Panel:PCHARGE:bias_color:follower:0	Magenta
+LFGUI:Panel:PCHARGE:bias_color:follower:1	Brown
+LFGUI:Panel:PCHARGE:bias_color:follower:2	Red
+LFGUI:Panel:PCHARGE:bias_color:follower:3	Magenta
+LFGUI:Panel:PCHARGE:bias_color:follower:4	Brown
+LFGUI:Panel:PCHARGE:bias_color:follower:5	Red
+
+LFGUI:Panel:PCHARGE:bias_line:follower:0	0
+LFGUI:Panel:PCHARGE:bias_line:follower:1	0
+LFGUI:Panel:PCHARGE:bias_line:follower:2	0
+LFGUI:Panel:PCHARGE:bias_line:follower:3	9
+LFGUI:Panel:PCHARGE:bias_line:follower:4	9
+LFGUI:Panel:PCHARGE:bias_line:follower:5	9
+
+#-------- VOLUME Panel
+^LFModel:LFGUI:VOLUME:scope  0
+^LFModel:LFGUI:VOLUME:keep_last false
+LFGUI:Panel:VOLUME:on	1
+LFGUI:Panel:VOLUME:Volume_color	Blue
+LFGUI:Panel:VOLUME:Volume_level	500
+LFGUI:Panel:VOLUME:Trans_color		ForestGreen
+
+#-------- DENSITY Panel
+LFGUI:Panel:DENSITY:on	1
+LFGUI:Panel:DENSITY:Density_color	ForestGreen
+LFGUI:Panel:DENSITY:Density_level	100
+LFGUI:Panel:DENSITY:Frequency_color	Magenta
+LFGUI:Panel:DENSITY:Frequency_level	500
+
+
+#-------- LVOLUME Panel
+
+LFGUI:Panel:LVOLUME:on	0
+
+#-------- FVOLUME Panel
+ 
+LFGUI:Panel:FVOLUME:on	0
+
+#-------- LMOVE Panel
+
+LFGUI:Panel:LMOVE:on	0
+
+#-------- FMOVE Panel
+
+LFGUI:Panel:FMOVE:on	0
+
+#-------- SCOPE Panel
+
+LFGUI:Panel:SCOPE:on	1
+LFGUI:Panel:SCOPE:sub_table_num 2
+
+#-------- P&L Panel
+
+LFGUI:Panel:PNL:on	1
+
+
+LFGUI:Panel:DOM:on	0

@@ -1,0 +1,258 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#include ""res\\OrderPlacing.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\OrderPlacing.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ORDERPLACING_DIALOG DIALOGEX 0, 0, 603, 388
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_POPUP | 
+    WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "Order Placing"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    LTEXT           "Account :",IDC_STATIC,23,15,32,8
+    COMBOBOX        IDC_CMB_ACCOUNTS,63,13,137,78,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Static",IDC_LBL_DATA_CONNECTION,362,15,87,8
+    LTEXT           "Static",IDC_LBL_GW_CONNECTION,461,15,79,8
+    GROUPBOX        "Instruments",IDC_STATIC,22,36,188,155
+    EDITTEXT        IDC_ED_SYMBOL_NAME,34,51,106,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "Subscribe",IDC_BTN_SUBSCRIBE,149,51,50,14
+    LISTBOX         IDC_LST_INSTRUMENTS,34,77,106,109,LBS_SORT | 
+                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Remove",IDC_BTN_REMOVE_INSTR,149,78,50,14
+    PUSHBUTTON      "Remove All",IDC_BTN_REMOVE_ALL_INSTR,149,97,50,14
+    LTEXT           "Static",IDC_LBL_INSTR_DESC,248,42,175,12,SS_NOPREFIX
+    GROUPBOX        "Quotes",IDC_STATIC,248,55,167,72
+    LTEXT           "Price",IDC_STATIC,307,66,40,8
+    LTEXT           "Volume",IDC_STATIC,356,66,40,8
+    LTEXT           "Ask :",IDC_STATIC,270,84,17,8
+    LTEXT           "N/A",IDC_LBL_ASK_PRICE,307,84,40,8
+    LTEXT           "N/A",IDC_LBL_ASK_VOLUME,356,84,40,8
+    LTEXT           "Trade :",IDC_STATIC,270,98,24,8
+    LTEXT           "N/A",IDC_LBL_TRADE_PRICE,307,98,40,8
+    LTEXT           "N/A",IDC_LBL_TRADE_VOLUME,356,98,40,8
+    LTEXT           "Bid :",IDC_STATIC,270,111,15,8
+    LTEXT           "N/A",IDC_LBL_BID_PRICE,307,111,40,8
+    LTEXT           "N/A",IDC_LBL_BID_VOLUME,356,111,40,8
+    PUSHBUTTON      "Buy",IDC_BTN_BUY,438,62,116,29
+    PUSHBUTTON      "Sell",IDC_BTN_SELL,438,97,116,29
+    LTEXT           "Quantity :",IDC_STATIC,219,157,34,8
+    EDITTEXT        IDC_ED_QUANTITY,260,154,56,14,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_SPN_QUANTITY,"msctls_updown32",UDS_ARROWKEYS | 
+                    WS_TABSTOP,315,154,11,14
+    LTEXT           "Limit Price :",IDC_STATIC,335,157,37,8
+    EDITTEXT        IDC_ED_LIMIT_PRICE,380,154,56,14,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    CONTROL         "",IDC_SPN_LIMIT_PRICE,"msctls_updown32",UDS_ARROWKEYS | 
+                    WS_TABSTOP,435,154,11,14
+    LTEXT           "Stop Price :",IDC_STATIC,456,157,38,8
+    EDITTEXT        IDC_ED_STOP_PRICE,500,154,56,14,ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    CONTROL         "",IDC_SPN_STOP_PRICE,"msctls_updown32",UDS_ARROWKEYS | 
+                    WS_TABSTOP,555,154,11,14
+    LTEXT           "Type :",IDC_STATIC,230,182,22,8
+    COMBOBOX        IDC_CMB_TYPE,260,180,68,79,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    LTEXT           "Duration :",IDC_STATIC,339,182,33,8
+    COMBOBOX        IDC_CMB_DURATION,380,180,68,64,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_DTP_GTD,"SysDateTimePick32",DTS_RIGHTALIGN | 
+                    DTS_UPDOWN | WS_TABSTOP,453,180,68,12
+    CONTROL         "Parked",IDC_CHK_PARKED,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,531,181,38,10
+    CONTROL         "",IDC_TAB_ORDERS,"SysTabControl32",WS_TABSTOP,7,200,531,
+                    14
+    CONTROL         "",IDC_LSV_ORDERS,"SysListView32",LVS_REPORT | 
+                    LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,7,214,531,167
+    PUSHBUTTON      "Modify",IDC_BTN_MODIFY,546,226,50,14
+    PUSHBUTTON      "Activate",IDC_BTN_ACTIVATE,546,250,50,14
+    PUSHBUTTON      "Activate All",IDC_BTN_ACTIVATE_ALL,546,266,50,14
+    PUSHBUTTON      "Cancel",IDC_BTN_CANCEL,546,290,50,14
+    PUSHBUTTON      "Cancel All",IDC_BTN_CANCEL_ALL,546,306,50,14
+END
+
+IDD_MODIFY_DIALOG DIALOGEX 0, 0, 178, 119
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
+    WS_SYSMENU
+CAPTION "Modify Order"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LTEXT           "Quantity :",IDC_STATIC,23,24,34,8
+    EDITTEXT        IDC_ED_MDF_QUANTITY,65,21,68,14,ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    CONTROL         "",IDC_SPN_MDF_QUANTITY,"msctls_updown32",UDS_ARROWKEYS,
+                    133,21,11,14
+    LTEXT           "Limit Price :",IDC_STATIC,19,44,37,8
+    EDITTEXT        IDC_ED_MDF_LIMIT_PRICE,65,41,68,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    CONTROL         "",IDC_SPN_MDF_LIMIT_PRICE,"msctls_updown32",
+                    UDS_ARROWKEYS,133,41,11,14
+    LTEXT           "Stop Price :",IDC_STATIC,17,65,38,8
+    EDITTEXT        IDC_ED_MDF_STOP_PRICE,65,62,68,14,ES_AUTOHSCROLL | 
+                    ES_READONLY
+    CONTROL         "",IDC_SPN_MDF_STOP_PRICE,"msctls_updown32",
+                    UDS_ARROWKEYS,133,62,11,14
+    DEFPUSHBUTTON   "OK",IDOK,65,98,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,121,98,50,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 3,0,0,0
+ PRODUCTVERSION 3,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "CQG, Inc."
+            VALUE "FileDescription", "Order Placing Sample"
+            VALUE "FileVersion", "3.0.0.0"
+            VALUE "InternalName", "OrderPlacing.exe"
+            VALUE "LegalCopyright", "(c) 2007 by CQG,Inc.  All rights reserved."
+            VALUE "OriginalFilename", "OrderPlacing.exe"
+            VALUE "ProductName", "Order Placing Sample"
+            VALUE "ProductVersion", "3.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_ORDERPLACING_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 596
+        TOPMARGIN, 6
+        BOTTOMMARGIN, 381
+    END
+
+    IDD_MODIFY_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 171
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 112
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#include "res\OrderPlacing.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

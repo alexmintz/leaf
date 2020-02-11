@@ -1,0 +1,56 @@
+//
+// md_monitor.RC2 - resources Microsoft Visual C++ does not edit directly
+//
+
+#ifdef APSTUDIO_INVOKED
+#error this file is not editable by Microsoft Visual C++
+#endif //APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Add manually edited resources here...
+#include "..\..\leaf\Version.h"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION LEAF_MAJOR_VERSION, LEAF_MINOR_VERSION, LEAF_BETA_VERSION, 0
+PRODUCTVERSION LEAF_MAJOR_VERSION, LEAF_MINOR_VERSION, LEAF_BETA_VERSION, 0
+FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+FILEFLAGS 0x1L
+#else
+FILEFLAGS 0x0L
+#endif
+FILEOS 0x4L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+	BLOCK "040904e4"
+	BEGIN
+		VALUE "CompanyName", "TAF Co"
+		VALUE "FileDescription", "STRATEGY"
+		VALUE "FileVersion", LEAF_VERSION
+		VALUE "InternalName", "md_monitor.exe"
+		VALUE "LegalCopyright", "(c) TAF Co.  All rights reserved."
+		VALUE "OriginalFilename", "md_monitor.exe"
+		VALUE "ProductName", "LEAF Monitor"
+		VALUE "ProductVersion", LEAF_VERSION
+	END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1252
+	END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+
+/////////////////////////////////////////////////////////////////////////////

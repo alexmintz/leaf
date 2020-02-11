@@ -1,0 +1,891 @@
+/*
+*
+*	© Copyright 2011 by TAF Co. All rights reserved.
+*
+*/
+
+#include "leaf/LFMarketData.h"
+#include "leaf/LFSide.h"
+
+#include <cstdlib>
+#include <set>
+#include <vector>
+
+
+//======================================================================
+//======================================================================
+std::string LF::side_to_str(LF::Side v_)
+{
+	switch(v_){
+	case LF::s_BUY: return "BUY";
+	case LF::s_SELL: return "SELL";
+	case LF::s_UNKNOWN: return "UNKNOWN";
+	default:
+		z_throw("LF::side_to_str -- Bad side.");
+	};
+	z_throw("LF::side_to_str -- Bad side.");
+}
+//======================================================================
+LF::Side LF::str_to_side(const std::string& v_s_)
+{
+	if(v_s_ == "BUY")
+		return LF::s_BUY;
+	if(v_s_ == "SELL")
+		return LF::s_SELL;
+	return LF::s_UNKNOWN;
+}
+//======================================================================
+const std::string		LFSecurityMaster::CLE = "CLE";
+const std::string		LFSecurityMaster::CLES = "CLES";
+const std::string		LFSecurityMaster::QO = "QO";
+const std::string		LFSecurityMaster::DXE = "DXE";
+const std::string		LFSecurityMaster::EP = "EP";
+const std::string		LFSecurityMaster::ES = "ES";
+const std::string		LFSecurityMaster::RFE = "RFE";
+
+const std::string		LFSecurityMaster::CL_EXCH = "CL";
+const std::string		LFSecurityMaster::QO_EXCH = "BR";
+const std::string		LFSecurityMaster::DX_EXCH = "DX";
+const std::string		LFSecurityMaster::EP_EXCH = "EP";
+const std::string		LFSecurityMaster::ES_EXCH = "ES";
+const std::string		LFSecurityMaster::RF_EXCH = "RF";
+
+const std::string		LFSecurityMaster::CQG_SEC = "F.US.";
+//======================================================================
+LFSecurityMaster::LFSecurityMaster()
+:	_id(0),
+	_expiration_months("FGHJKMNQUVXZ"),
+	_tick_size(0),
+	_tick_value(0),
+	_pf(1.0)
+{
+	std::vector<char> sep;
+	sep.push_back(':');
+	sep.push_back(' ');
+	sep.push_back(',');
+
+	std::string types = TCSettings::get("LFStrategy:security_asset", CQG_SEC);
+	std::string securities = TCSettings::get("LFStrategy:securities", 
+		CLE + "," + DXE + "," + EP + "," + QO + "," + CLES + "," + ES + "," + RFE);
+
+	_spm = tc_vector<int>(Z::get_setting("LFStrategy:spread_months", "1, 6, 12"));
+
+
+	TCTime endofday_t(Z::get_setting("LFStrategy:endofday", "17:00:00"));
+	TCDateTime dt = TCDateTime::now();
+	TCDate date = dt.get_date();
+	if (dt.get_time() > endofday_t)
+		date = tc_b_date->next_business_date(dt.get_date());
+
+	std::vector<std::string> sec_v;
+	tc_token_vec(securities, sec_v, ',');
+
+	for (size_t i = 0; i < sec_v.size(); ++i)
+	{
+		TCResourceMap	mmap; //Overrides:QO:J	2016129:2016216
+		std::string br = "Overrides:" + sec_v[i] + ":*";
+		TCSettings::get_resource_match(br, mmap);
+		std::set<std::string> s;
+
+		for (TCResourceMap::iterator it = mmap.begin(); it != mmap.end(); ++it)
+		{
+			_s_over_map[sec_v[i]][(*it).second->get_value()] = (*it).second->get_sub_name(2)[0];
+		}
+	}
+
+	std::string cle = get_cle(date); std::string l_m = cle.substr(cle.length()-3, 1);
+	std::string dxe = get_dxe(date); std::string d_m = dxe.substr(dxe.length() - 3, 1);
+	std::string smp = get_smp(date); std::string s_m = smp.substr(smp.length() - 3, 1);
+	std::string brn = get_brn(date); std::string b_m = brn.substr(brn.length() - 3, 1);
+	std::string rfe = get_rfe(date); std::string r_m = rfe.substr(rfe.length() - 3, 1);
+
+	std::vector<int> vy;
+
+	vy.push_back(atoi(cle.substr(cle.length() - 2).c_str()));
+	vy.push_back(atoi(dxe.substr(dxe.length() - 2).c_str()));
+	vy.push_back(atoi(smp.substr(smp.length() - 2).c_str()));
+	vy.push_back(atoi(brn.substr(brn.length() - 2).c_str()));
+	vy.push_back(atoi(rfe.substr(rfe.length() - 2).c_str()));
+
+	std::sort(vy.rbegin(), vy.rend());
+	int l_y = vy[0];
+
+
+	for(int y = 10; y <= l_y+1; y++)
+	{
+		for(size_t k = 0; k < _expiration_months.length(); k++)
+		{
+			std::ostringstream os;
+			os << _expiration_months[k] << y;
+			_exp.push_back(os.str());
+		}
+	}
+
+	tc_token_vec(types,			_ast, sep);
+	tc_token_vec(securities,	_und, sep);
+
+	for(size_t j = 0; j < _ast.size(); ++j)
+		for(size_t i = 0; i < _und.size(); ++i)
+			for (size_t k = 0; k < _exp.size(); ++k)
+			{
+				if (_und[i][_und[i].length()-1] != 'S') // do not want to add expirations for Strategies
+					_m[_ast[j] + _und[i] + _exp[k]] = (long)(i + 1);
+				else
+				{
+					for (size_t l = 0; l < _spm.size(); ++l)
+					{
+						std::ostringstream os;
+						os << _ast[j] << _und[i] << _spm[l] << _exp[k];
+						_m[os.str()] = (long)(i + 1 + _und.size()*(l+1));
+					}
+				}
+			}
+
+	BMTS<LFVWAPData>::instance()->_root_dir = Z::get_setting("BMTS:root_dir");
+}
+//======================================================================
+LFSecurityMaster* LFSecurityMaster::instance()
+{
+	return ACE_Singleton <LFSecurityMaster, ACE_Thread_Mutex>::instance();
+}
+//======================================================================
+long LFSecurityMaster::strategy_id(const std::string& instr_)
+{
+	_id = get_strategy_id(instr_, Z::get_setting_integer("LFStrategy:number", 0));
+
+	std::ostringstream os;
+	os << _id;
+
+	Z::add_setting("LFStrategy:strategy_id", os.str().c_str());
+	return _id;
+}
+
+long LFSecurityMaster::get_strategy_id(const std::string& instr_, long strategy_number_) const
+{
+	long id = Z::get_setting_integer("LFStrategy:strategy_id", 0);
+
+	if (id != 0)
+		return id;
+
+	id = strategy_number_;
+	if (!instr_.empty())
+	{
+		LFSecurityMap::const_iterator fl = _m.find(instr_);
+		if (fl != _m.end())
+		id += 1000 * (*fl).second;
+	}
+	return id;
+}
+//======================================================================
+std::string LFSecurityMaster::get_instr(const std::string& under_, const TCDate& date_)
+{
+	if (under_ == CLE)
+		return LFSecurityMaster::instance()->get_cle(date_);
+	if (under_ == QO)
+		return LFSecurityMaster::instance()->get_brn(date_);
+	if (under_ == EP || under_ == ES)
+		return LFSecurityMaster::instance()->get_smp(date_);
+	if (under_ == DXE)
+		return  LFSecurityMaster::instance()->get_dxe(date_);
+	else if (under_ == CLES)
+		return LFSecurityMaster::instance()->get_cls(date_)[0];
+	else if (under_ == RFE)
+		return LFSecurityMaster::instance()->get_rfe(date_);
+
+	z_throw("wrong underlying");
+}
+
+std::string LFSecurityMaster::get_cle(const ACE_Time_Value& tv_)
+{
+	TCDateTime	dt(tv_);
+	TCDate		d = dt.get_date();
+	return get_cle(d);
+}
+std::string LFSecurityMaster::get_dxe(const ACE_Time_Value& tv_)
+{
+	TCDateTime	dt(tv_);
+	TCDate		d = dt.get_date();
+	return get_dxe(d);
+}
+std::string LFSecurityMaster::get_cle(const TCDate& dt)
+{
+	std::string c = get_cl(dt);
+	set_cqg_cle(c, c);
+	return c;
+}
+std::vector<std::string> LFSecurityMaster::get_cls(const TCDate& dt)
+{
+	std::string c = get_cl(dt);
+	std::vector<std::string> rsp;
+
+	for (size_t i = 0; i < _spm.size(); ++i)
+	{
+		std::ostringstream os;
+		os << "F.US.CLES" << _spm[i] << c[2] << dt.year() - 2000;
+		rsp.push_back(os.str());
+
+	}
+	return rsp;
+}
+bool LFSecurityMaster::set_cqg(std::string& s_, const std::string& front_)
+{
+	// spread CLM5-CLN5 equals to CLES1M5, regular future would be CLM5
+	size_t l = s_.length();
+
+	if (l == 4 && s_.substr(0, 2) == "ES")
+		return set_cqg_smp(s_);
+
+	if (s_.substr(0, 2) == "CL")
+	{
+		if (l == 4)
+			return set_cqg_cle(s_, front_);
+
+		if(l == 9)
+			return set_cqg_cls(s_, front_);
+	}
+	return false;
+}
+bool LFSecurityMaster::set_cqg_cls(std::string& c, const std::string& front_)
+{	// 012345678
+	// CLM5-CLN5 =>	F.US.CLES1M5
+	if (c.substr(4, 3) != "-CL")
+		return false;
+	if (c.substr(0, 4) != front_)
+		return false;	//Looking only for + 1 and + 6 of the front
+
+	int ydiff = atoi(c.substr(8, 1).c_str()) - atoi(c.substr(3, 1).c_str());
+	if (ydiff < 0)
+		return false;
+
+	size_t gap = 0;
+	size_t m1 = cl_future_month(c[2]);
+	size_t m2 = cl_future_month(c[7]);
+
+	if (ydiff == 0)
+		gap = m2 -m1;
+	else if (ydiff == 1)
+		gap = 11 - m1 + m2;
+	else
+		gap += 12;
+
+	bool go = false;
+	for (size_t i = 0; i < _spm.size(); ++i)
+	{
+		if (_spm[i] == gap)
+		{
+			go = true;
+			break;
+		}
+	}
+	if (go)
+	{	// Looking only for +1 and +6 of the front
+
+		c.insert(2, "ES");		// 0123456789
+		c.insert(0, "F.US.");	// F.US.CLESM5-CLN5
+		std::ostringstream os;
+		os << gap;
+		c.insert(9, os.str());
+		c.erase(c.find('-', 8));
+		c.insert(c.end() - 1, '1');
+
+		return true;
+	}
+	return false;
+}
+bool LFSecurityMaster::set_cqg_cle(std::string& c, const std::string& front_)
+{
+	if (c != front_)
+		return false;
+	c.insert(2, "E");
+	c.insert(0, "F.US.");
+	c.insert(9, "1");
+	return true;
+}
+bool LFSecurityMaster::set_cqg_smp(std::string& c)
+{
+	c.replace(1,1,1,'P'); // ES -> EP
+	c.insert(0, "F.US.");
+	c.insert(8, "1");
+	return true;
+}
+bool LFSecurityMaster::set_cqg_brn(std::string& c)
+{
+	c.insert(0, "F.US.");
+	c.insert(8, "1");
+	return true;
+}
+void LFSecurityMaster::set_cqg_dxe(std::string& c)
+{
+	c.insert(0, "F.US.");
+	c.insert(9, "1");
+}
+std::string LFSecurityMaster::get_dxe(const TCDate& dt)
+{
+	std::string c = get_dx(dt);
+	set_cqg_dxe(c);
+	return c;
+}
+std::string LFSecurityMaster::get_smp(const TCDate& dt)
+{
+	std::string c = get_sp(dt);
+	set_cqg_smp(c);
+	return c;
+}
+std::string LFSecurityMaster::get_brn(const TCDate& dt)
+{
+	std::string c = get_br(dt);
+	set_cqg_brn(c);
+	return c;
+}
+std::string LFSecurityMaster::get_dx(const TCDate& d)
+{
+	// last trading day is 2 business days prior to 3rd wednesday of Mar, June, Sep, Dec
+
+	std::string dxe = DXE; //"DXE";
+
+	_tick_size	= 0.005;
+	_tick_value = 5;
+
+	unsigned char	m = d.month();
+	ACE_UINT16		y = d.year();
+
+	// expiration month 3,6,9,12
+	if(m%3 != 0) // non-expiration month
+		m = (m/3 + 1)*3;
+	else
+	{
+		// we are in expiration month
+		unsigned char exp_day = dx_future_switch(d);
+
+		if(d.day() > exp_day)
+			m += 3;
+	}
+	if (m > 12)
+	{
+		m -= 12;
+		y++;
+	}
+	dxe	+= future_char(m, d, dxe);
+	dxe += year_char(y);
+
+	return dxe;
+}
+std::string LFSecurityMaster::get_rfe(const TCDate& d)
+{
+	// Last Trading Day = Third Friday of the expiration month of Mar, June, Sep, Dec
+
+	std::string rsl = "F.US.RFE";
+
+	_tick_size = 0.1;
+	_tick_value = 10;
+	_pf = 100;
+
+	unsigned char	m = d.month();
+	ACE_UINT16		y = d.year();
+
+	// expiration month 3,6,9,12
+	if (m % 3 != 0) // non-expiration month
+		m = (m / 3 + 1) * 3;
+	else
+	{
+		// we are in expiration month
+		unsigned char exp_day = rf_future_switch(d);
+
+		if (d.day() > exp_day)
+			m += 3;
+	}
+	if (m > 12)
+	{
+		m -= 12;
+		y++;
+	}
+	rsl += future_char(m, d, RFE);
+	rsl += year_char(y);
+
+	return rsl;
+}
+std::string LFSecurityMaster::get_cl(const ACE_Time_Value& tv_)
+{
+	TCDateTime	dt(tv_);
+	TCDate		d = dt.get_date();
+	return get_cl(d);
+}
+
+std::string LFSecurityMaster::get_sp(const ACE_Time_Value& tv_)
+{
+	TCDateTime	dt(tv_);
+	TCDate		d = dt.get_date();
+	return get_sp(d);
+}
+
+std::string LFSecurityMaster::get_cl(const TCDate& d)
+{
+	std::string cle = CL_EXCH; // "CL"
+	_tick_size	= 0.01;
+	_tick_value = 10;
+	_pf = 100;
+
+	unsigned char	m = d.month();
+	ACE_UINT16		y = d.year();
+
+	unsigned char exp_day = cl_future_switch(d);
+
+	if(d.day() < exp_day)
+		m += 1;
+	else
+		m += 2;
+	if (m > 12)
+	{
+		m -= 12;
+		y++;
+	}
+	cle	+= future_char(m, d, cle);
+	cle += year_char(y);
+
+	return cle;
+}
+std::string LFSecurityMaster::get_br(const TCDate& d)
+{
+	std::string brn = QO;
+	_tick_size	= 0.01;
+	_tick_value = 10;
+	_pf = 100;
+
+	unsigned char	m = d.month();
+	ACE_UINT16		y = d.year();
+
+	unsigned char exp_day = br_future_switch(d);
+
+	if(d.day() < exp_day)
+		m += 1;
+	else
+		m += 2;
+	if (m > 12)
+	{
+		m -= 12;
+		y++;
+	}
+	brn	+= future_char(m, d, brn);
+	brn += year_char(y);
+
+	return brn;
+}
+double LFSecurityMaster::get_settlement_price(const std::string& sec_)
+{
+	std::string day_t = Z::get_setting("LFModel:date");
+
+	double& last_close = _s_map[sec_+ day_t];
+	if (last_close != 0)
+		return last_close;
+
+	// dir
+	const std::string& dir = TCFiler::get_dir(BMTS<LFVWAPData>::instance()->_root_dir,
+		BMTS<LFVWAPData>::instance()->_table, false);
+
+	// date
+	TCDate d(day_t);
+	TCJulianDate jd(d);
+	jd -= 1; //yesterday
+
+	//----- We try 5 days back (consequtive holidays, if no luck to find a file in "vwap", then give up)
+	TCDate date;
+
+	for (int attempt = 0; attempt < 5; ++attempt)
+	{
+		date = jd.get_TCDate();
+		std::string filer = TCFiler::get_fname(dir, sec_, date.get_ymd(), true);
+		if (!filer.empty())
+		{
+			VWAPReader r_follower(filer);
+			while (!r_follower.step());
+			last_close = r_follower.get_vwap();
+			Z::report_info("vwap %f -- for %s %s on %s", last_close, sec_.c_str(), day_t.c_str(), date.as_string().c_str());
+			break;
+		}
+		else
+		{
+			Z::report_info("vwap missed on %s, trying previous", date.as_string().c_str());
+			--jd;
+		}
+	}
+	if (last_close == 0)
+		Z::report_alert("vwap missed -- %s %s for %s until %s", dir.c_str(), sec_.c_str(), day_t.c_str(), date.as_string().c_str());
+
+	return last_close;
+}
+unsigned char LFSecurityMaster::smp_exp_day(ACE_UINT16 y_, unsigned char m_)
+{
+	// Looking for the 3rd Friday of the month
+	// if 15th is Friday - this is it, otherwise just next one
+	// Expirations are March (3), June (6) , September (9) , December (12)
+
+	TCDate d(15, m_, y_);
+	TCJulianDate jd(d);
+
+	while(jd.week_day() != 5)
+		++jd;
+
+	while(!tc_b_date->is_business(jd, EP)) --jd;
+	jd -= 2;										//two days before expiration
+	while (!tc_b_date->is_business(jd, EP)) --jd;
+
+	return jd.get_TCDate().day();
+}
+std::string LFSecurityMaster::get_sp(const TCDate& d)
+{
+	std::string smp = ES;
+	_tick_size	= 0.25;
+	_tick_value = 12.50;
+	_pf = 100;
+	unsigned char	m = d.month();
+	ACE_UINT16		y = d.year();
+	unsigned char	day = d.day();
+	unsigned char	month = 0;
+
+	if(m < 3)
+		month = 3;
+	else
+	{
+		int r = m/3;
+		int h = (m%3 > 0 ? 1 : 0);
+		month = 3*(r+h);
+		if(month > 12)
+		{
+			month = 3;
+			y++;
+		}
+	}
+
+	unsigned char exp_day = smp_exp_day(y, month);
+
+	if(month == m && day >= exp_day)
+	{
+		month += 3;
+		if(month > 12)
+		{
+			month = 3;
+			y++;
+		}
+		exp_day = smp_exp_day(y, month);
+	}
+
+	smp	+= future_char(month, d, smp);
+	smp += year_char(y);
+
+	return smp;
+}
+//======================================================================
+size_t LFSecurityMaster::cl_future_month(const char m_) const
+{
+	size_t pos = _expiration_months.find(m_);
+	if(pos == std::string::npos)
+		z_throw("wrong letter for CL expiration");
+	return pos;
+}
+char LFSecurityMaster::future_char(const unsigned char m_, const TCDate& d_, const std::string& instr_) const
+{
+	char future = '\0';
+	SecurityOverrideMap::const_iterator it = _s_over_map.find(instr_);
+	if (it != _s_over_map.end())
+	{
+		const MonthOverrideMap& o_map = (*it).second;
+		for (MonthOverrideMap::const_iterator ot = o_map.begin(); ot != o_map.end(); ++ot)
+		{
+			if ((*ot).first.in_range(d_))
+			{
+				future = (*ot).second;
+				break;
+			}
+		}
+	}
+	if (future != '\0')
+		return future;
+	if(m_ < 1 || m_ > 12)
+		z_throw("month is out of 1-12 limits");
+	return _expiration_months[m_-1];
+}
+
+unsigned char LFSecurityMaster::dx_future_switch(const TCDate& dt_)
+{ //second wednesday, or next business day after it
+	TCDate d(1, dt_.month(), dt_.year());
+	TCJulianDate jd(d);
+	int i = 0;
+	int k = 0;
+	for(int i = 0; i < 2; ++jd)
+	{
+		k = jd.week_day();
+		if(k == 3)
+			++i;
+	}
+
+	while(tc_b_date->is_business(jd, DXE)) ++jd;
+	return jd.get_TCDate().day();
+}
+unsigned char LFSecurityMaster::rf_future_switch(const TCDate& dt_)
+{ //third friday, or next business day after it
+	TCDate d(1, dt_.month(), dt_.year());
+	TCJulianDate jd(d);
+	int i = 0;
+	int k = 0;
+	for (int i = 0; i < 3; ++jd)
+	{
+		k = jd.week_day();
+		if (k == 5)
+			++i;
+	}
+
+	while (tc_b_date->is_business(jd, RFE)) ++jd;
+	return jd.get_TCDate().day();
+}
+unsigned char LFSecurityMaster::br_future_switch(const TCDate& dt_)
+{
+// Trading shall cease at the end of the designated settlement period on the Business Day
+// (a trading day which is not a public holiday in England and Wales) immediately preceding either:
+// (i) the 15th calendar day before the first calendar day of the contract month, if such 15th calendar day is a Business Day; or,
+// (ii) if such 15th calendar day is not a Business Day the next preceding Business Day.
+// i.e month_days - 15
+	int m = dt_.month() + 1;
+	int y = dt_.year();
+	if (m > 12)
+	{
+		m -= 12;
+		y++;
+	}
+	TCDate d(1, m, y);
+
+	TCJulianDate jd(d);
+	// we want to switch 3 days earlier
+	jd -=19;
+	while (!tc_b_date->is_business(jd, QO)) --jd;
+
+	return jd.get_TCDate().day();
+}
+unsigned char LFSecurityMaster::cl_future_switch(const TCDate& dt_)
+{
+	TCDate d(25, dt_.month(), dt_.year());
+	TCJulianDate jd(d);
+
+	while (!tc_b_date->is_business(jd, CLE)) --jd; // first business day
+	jd -= 3;								  // 3 days prior to first business day off 25th
+	while (!tc_b_date->is_business(jd, CLE)) --jd; // unless it is a hoiliday
+	jd -= 3;								 // Jerry's request to move another 3 days
+	while (!tc_b_date->is_business(jd, CLE)) --jd; // unless it is a hoiliday
+
+	return jd.get_TCDate().day();
+}
+
+//======================================================================
+//======================================================================
+//======================================================================
+const char* LFTradeData::header()
+{
+	return ",S_KEY,CQG_ID,P,Q,PVOL";
+}
+
+//======================================================================
+
+std::ostream& operator<<(std::ostream& os, const LFTradeData& d_)
+{
+	d_.to_stream(os);
+
+	os	 << "," << d_._instr_key
+		 << "," << d_._cqg_InstrumentID;
+
+	os << "," << d_._trade._p << "," << d_._trade._q;
+	os << "," << d_._p_vol;
+	return os;
+}
+//======================================================================
+void LFTradeData::from_csv_vec(const std::vector<const char*>& v_)
+{
+	if(v_.size() < Z::Point::TIME_FIELDS + 5)
+		z_throw("LFTradeData::from_csv_vec -- bad format.");
+
+	Z::Point::from_csv_vec(v_);
+
+	int ind = Z::Point::TIME_FIELDS;
+
+	_instr_key = v_[ind++];
+	_cqg_InstrumentID = atol(v_[ind++]);
+	_trade.reset(atof(v_[ind]), atof(v_[ind+1]));
+	ind += 2;
+	_p_vol = atof(v_[ind++]);
+}
+//======================================================================
+LFTradeData::LFTradeData()
+:	_cqg_InstrumentID(-1),
+	_p_vol(0)
+{
+}
+//======================================================================
+LFTradeData::~LFTradeData()
+{
+}
+//======================================================================
+ bool operator<<(ACE_OutputCDR& strm, const LFTradeData& d_)
+{
+	if (!d_.to_cdr(strm))
+	  return false;
+	if (!(strm << d_._instr_key))
+	  return false;
+	if (!(strm << d_._cqg_InstrumentID))
+	  return false;
+
+	if(!(strm << d_._trade))
+		return false;
+	if(!(strm << d_._p_vol))
+		return false;
+	return true;
+}
+bool operator>>(ACE_InputCDR& strm, LFTradeData& d_)
+{
+	if (!d_.from_cdr(strm))
+	  return false;
+	if (!(strm >> d_._instr_key))
+	  return false;
+	if (!(strm >> d_._cqg_InstrumentID))
+	  return false;
+
+	if(!(strm >> d_._trade))
+		return false;
+	if(!(strm >> d_._p_vol))
+		return false;
+	return true;
+}
+std::string LFTradeData::as_string() const
+{
+	std::ostringstream os;
+	os << TCTimestamp(_t).c_str() << " " << _instr_key
+		<< "(" << _cqg_InstrumentID << ") ";
+	os << _trade;
+	return os.str();
+}
+//======================================================================
+
+const char* LFVWAPData::header()
+{
+	return ",S_KEY,CQG_ID,VWAP";
+}
+
+//======================================================================
+
+std::ostream& operator<<(std::ostream& os, const LFVWAPData& d_)
+{
+	d_.to_stream(os);
+
+	os << "," << d_._instr_key
+		<< "," << d_._cqg_InstrumentID
+		<< "," << d_._vwap;
+	return os;
+}
+//======================================================================
+void LFVWAPData::from_csv_vec(const std::vector<const char*>& v_)
+{
+	if (v_.size() < Z::Point::TIME_FIELDS + 3)
+		z_throw("LFVWAPData::from_csv_vec -- bad format.");
+
+	Z::Point::from_csv_vec(v_);
+
+	int ind = Z::Point::TIME_FIELDS;
+
+	_instr_key = v_[ind++];
+	_cqg_InstrumentID = atol(v_[ind++]);
+	_vwap = atof(v_[ind++]);
+}
+//======================================================================
+LFVWAPData::LFVWAPData(const std::string& instr_key_,
+	const ACE_Time_Value tv_,
+	double vwap_)
+	: Z::Point(tv_),
+	_instr_key(instr_key_),
+	_cqg_InstrumentID(-1),
+	_vwap(vwap_)
+{
+}
+LFVWAPData::LFVWAPData()
+	:_cqg_InstrumentID(-1),
+	_vwap(0)
+{
+}
+//======================================================================
+LFVWAPData::~LFVWAPData()
+{
+}
+//======================================================================
+bool operator<<(ACE_OutputCDR& strm, const LFVWAPData& d_)
+{
+	if (!d_.to_cdr(strm))
+		return false;
+	if (!(strm << d_._instr_key))
+		return false;
+	if (!(strm << d_._cqg_InstrumentID))
+		return false;
+	if (!(strm << d_._vwap))
+		return false;
+	return true;
+}
+bool operator>>(ACE_InputCDR& strm, LFVWAPData& d_)
+{
+	if (!d_.from_cdr(strm))
+		return false;
+	if (!(strm >> d_._instr_key))
+		return false;
+	if (!(strm >> d_._cqg_InstrumentID))
+		return false;
+	if (!(strm >> d_._vwap))
+		return false;
+	return true;
+}
+std::string LFVWAPData::as_string() const
+{
+	std::ostringstream os;
+	os << TCTimestamp(_t).c_str() << " " << _instr_key
+		<< "(" << _cqg_InstrumentID << ") ";
+	os << _vwap;
+	return os.str();
+}
+
+//======================================================================
+//=====================================================================
+VWAPReader::VWAPReader(const std::string& file_)
+	: BMReaderBase(file_),
+	_worker(1, "worker")
+{
+	_worker.hwm(100);
+	_worker.lwm(10);
+	_worker.open();
+	_worker.register_handler(this, &VWAPReader::process);
+}
+VWAPReader::~VWAPReader()
+{
+	_worker.unregister_handler<ACE_Message_Block>();
+}
+void VWAPReader::process_rec(ACE_Message_Block* mb_)
+{
+	ACE_Message_Block* amb = mb_->clone();
+	_worker.send(amb);
+}
+void VWAPReader::process_hdr(ACE_Message_Block* mb_)
+{
+
+}
+void VWAPReader::process_eof(bool full_)
+{
+	_worker.close(false);
+	_worker.wait();
+}
+void VWAPReader::process(ACE_Message_Block* mb_)
+{
+	auto_ptr<ACE_Message_Block> m(mb_);
+	std::string s(m->base(), m->wr_ptr() - m->rd_ptr());
+	s.erase(remove(s.begin(), s.end(), '\"'), s.end());
+
+	std::vector<std::string> v;
+	tc_token_vec(s, v, ',');
+	if (v.size() > 5)
+		_vwap = ACE_OS::strtod(v[5].c_str(), 0);
+}
+
+//======================================================================
+
+//======================================================================

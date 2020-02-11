@@ -1,0 +1,219 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="batchView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ChildFrm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ClrButton.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="initDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MainFrm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="md_graphView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="md_monitor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="md_monitorDoc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="md_monitorView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="modelDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="p_orderFillView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="p_orderView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="p_RTPosView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerDlgBar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="runDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VersionInfo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="batchView.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ChildFrm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ClrButton.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="initDialog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MainFrm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="md_graphView.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="md_monitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="md_monitorDoc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="md_monitorView.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="modelDialog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="p_format.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="p_orderFillView.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="p_orderView.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="p_RTPosView.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerDlgBar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="runDialog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VersionInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\bitmap1.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\buttondown.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\buttonfocus.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\buttonup.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\buttonx.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\md_monitor.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\md_monitorDoc.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\paused.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\pausef.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\pauseu.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\pausex.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Play1Hot.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\..\..\..\..\..\Downloads\IconsLandVistaPlayStopPauseIconsDemo\IconsLandVistaPlayStopPauseIconsDemo\ICO\CircleBlue\Play1Hot.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\play_btn.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\playd.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\playu.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\playx.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Stop1NormalBlue.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Stop1PressedBlue.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\stopd.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\stopu.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\stopx.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\styles.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Toolbar.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="md_monitor.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\md_monitor.rc2">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+</Project>

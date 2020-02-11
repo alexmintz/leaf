@@ -1,0 +1,373 @@
+/*
+*
+*	© Copyright 2012 by TAF Co. All rights reserved.
+*
+*/
+
+#include "dxe_reader.h"
+
+int main(int argc, char* argv[])
+{
+
+	try {
+		Z::add_command_line_option("d", "DXE csv file for processing");
+		Z::add_command_line_option("trades_only", "Process trades only");
+		Z::init(argc, argv);
+
+		std::string dxe_data = Z::get_setting("COMMAND:d");
+		if(!dxe_data.empty())
+			TCSettings::set_resource("BMTS:ice_dxe_data", dxe_data);
+
+		TCFiler::instance()->set_mode(ios::app);
+		BMTS<LFDepthDataReader>::instance()->_out_file = true;
+		BMTS<LFTradeData>::instance()->_out_file = true;
+		BMTS<LFVWAPData>::instance()->_out_file = true;
+
+		BMModel::instance()->subscribe<LFDepthDataReader>();
+		BMModel::instance()->subscribe<LFTradeData>();
+		BMModel::instance()->subscribe<LFVWAPData>();
+		BMModel::instance()->open();
+
+		DXEReader rd(dxe_data, Z::get_setting_bool("COMMAND:trades_only"));
+		rd.run();
+
+		BMModel::instance()->close();
+
+		Z::fini();
+	}
+	catch(Z::Exception& e)
+	{
+		std::cout << e << std::endl;
+		return -1;
+	}
+	return 0;
+}
+
+DXEReader::DXEReader(const std::string& file_, bool trades_only_)
+: BMReaderBase(file_),
+  _worker(1, "worker"),
+  _ticker(t_UNKNOWN),
+  _trades_only(trades_only_),
+  _repeat_bbo(TCSettings::get_bool("LFModel:repeat_bbo", false)),
+  _vwap_over(false)
+{
+	_trace_r.init(Z::get_setting("BMTS:DXEReader:back_trace", "20120315_160333:20120315_160335"));
+	_worker.hwm(100);
+	_worker.lwm(10);
+	_worker.open();
+	_worker.register_handler (this, &DXEReader::process);
+}
+DXEReader::~DXEReader()
+{
+	_worker.unregister_handler<ACE_Message_Block>();
+}
+void DXEReader::run()
+{
+	while(!step());
+}
+
+void DXEReader::process_hdr(ACE_Message_Block* mb_)
+{
+}
+void DXEReader::process_eof(bool full_)
+{
+	_worker.close(false);
+	_worker.wait();
+}
+
+
+ACE_Time_Value DXEReader::get_ace_time(const std::string& ts_)
+{
+	std::vector<std::string> v;
+	tc_token_vec(ts_,v,'-');
+
+	tm ttm;
+	ttm.tm_mday = atoi(v[0].c_str());
+	std::string m("JFMAMJJASOND");
+	if(v[1][0] == 'J')
+	{
+		if(v[1] == "Jan")
+			ttm.tm_mon	= 0;
+		else if(v[1] == "Jun")
+			ttm.tm_mon	= 5;
+		else
+			ttm.tm_mon	= 6;
+	}
+	else if(v[1][0] == 'A')
+	{
+		if(v[1][1] == 'p')
+			ttm.tm_mon	= 3;
+		else
+			ttm.tm_mon	= 7;
+	}
+	else if(v[1][0] == 'M')
+	{
+		if(v[1] == "May")
+			ttm.tm_mon	= 4;
+		else if(v[1] == "Mar")
+			ttm.tm_mon	= 2;
+	}
+	else
+		ttm.tm_mon	= (int)(m.find(v[1][0]));
+
+	if(ttm.tm_mon < 0 || ttm.tm_mon > 11)
+		return ACE_Time_Value::zero;
+
+	ttm.tm_year = atoi(v[2].c_str()) - 1900;
+	ttm.tm_hour = atoi(ts_.substr(12, 2).c_str());
+	ttm.tm_min	= atoi(ts_.substr(15,2).c_str());
+	ttm.tm_sec	= atoi(ts_.substr(18,2).c_str());
+	ttm.tm_isdst= -1;
+
+	long usec = atoi(ts_.substr(21).c_str())*1000;
+	TCDateTime tcdt(ttm);
+	return tcdt.get_ace_from_gmt_time(usec);
+}
+void DXEReader::process_rec(ACE_Message_Block* mb_)
+{
+	ACE_Message_Block* amb = mb_->clone();
+	_worker.send(amb);
+}
+bool DXEReader::make_key(const std::string& s_, std::string& key_, const ACE_Time_Value& tv_)
+{
+	std::string front, tomorrow;
+
+	if (s_[11] != '!')
+	{
+		key_.clear();
+		return false;
+	}
+	TCDateTime	dt(tv_);
+	TCDate		d = dt.get_date();
+
+	TCJulianDate jd(d); ++jd;
+	TCDate		t = jd.get_TCDate();
+
+
+	_base_symbol = "F.US.";
+	std::string ss = s_.substr(0, 2);
+	if(ss == "DX")
+	{
+		_base_symbol += "DXE";
+		front = LFSecurityMaster::instance()->get_dxe(d);
+		tomorrow = LFSecurityMaster::instance()->get_dxe(t);
+		_ticker = t_DXE;
+	}
+	else if(ss == "BR")
+	{
+		_base_symbol += "QO";
+		front = LFSecurityMaster::instance()->get_brn(d);
+		tomorrow = LFSecurityMaster::instance()->get_brn(t);
+		_ticker = t_BRN;
+	}
+	else if (ss == "RF")
+	{
+		_base_symbol += "RFE";
+		front = LFSecurityMaster::instance()->get_rfe(d);
+		tomorrow = LFSecurityMaster::instance()->get_rfe(t);
+		_ticker = t_BRN;
+	}
+
+	else
+	{
+		_base_symbol = "bad symbol " + s_.substr(0, 3);
+		_ticker = t_UNKNOWN;
+		Z::throw_error(_base_symbol.c_str());
+	}
+
+
+	key_ = _base_symbol + s_.substr(6, 1) + s_.substr(9, 2);
+
+	if(front == key_ || key_ == tomorrow)
+		return true;
+
+	key_.clear();
+	return false;
+}
+void DXEReader::process(ACE_Message_Block* mb_)
+{
+	auto_ptr<ACE_Message_Block> m(mb_);
+	std::string s(m->base(), m->wr_ptr() - m->rd_ptr());
+	s.erase(remove(s.begin(), s.end(), '\"'), s.end());
+
+	std::vector<std::string> v;
+	tc_token_vec(s, v, ',');
+
+	const ACE_Time_Value& tv = get_ace_time(v[0]);
+
+	long sec_id = atol(v[1].c_str());
+
+	LFDepthDataReader& prev_depth = _d_map[sec_id].first;
+	LFDepthDataReader& prev_sent = _d_map[sec_id].second;
+
+	if (prev_depth._instr_key.empty())
+	{
+		if (!make_key(v[2], prev_depth._instr_key, tv))
+			return;
+
+		prev_depth._tick_size = LFSecurityMaster::instance()->get_tick_size();
+		prev_depth._tick_value = LFSecurityMaster::instance()->get_tick_value();
+		prev_depth._t = tv;
+	}
+
+	double price = ACE_OS::strtod(v[4].c_str(), 0);
+	double qty = ACE_OS::strtod(v[5].c_str(), 0);
+
+	if (price == 0)
+		return;
+
+	Counter& ctr = _c_map[sec_id];
+
+	if (v[3] == "T")
+	{
+		if (v[6][0] != '\0')
+			return;
+
+		if (ctr._tv_b == ACE_Time_Value::zero)// beginning of the group
+			ctr._tv_b = prev_depth._t;
+		
+		ctr._trade_group.push_back(Trade(price, qty, tv));
+		
+		/*
+		if (tv < prev_depth._t)
+		{
+			if (ctr._tv == prev_depth._t)
+				ctr._millsec++;
+			else
+				ctr._millsec = 1;
+
+			TCDateTime trade_t(tv);
+			TCDateTime depth_t(prev_depth._t);
+
+			Z::report_alert("sec_id[%d] trade time %s mismatch with depth %s, ba(%f, %f) trade(%f, millsec %d)",
+				sec_id, 
+				trade_t.as_string().c_str(), depth_t.as_string().c_str(),
+				prev_depth._bid[0]._p, prev_depth._ask[0]._p,
+				price,	ctr._millsec);
+
+			tv = prev_depth._t;
+			tv.usec(tv.usec() + ctr._millsec);
+		}
+
+		ctr._tv = prev_depth._t;
+		
+		_lftrade._t = tv;
+		_lftrade._instr_key = prev_depth._instr_key;
+		_lftrade._trade.reset(price, qty);
+
+		BMModel::instance()->send(new LFTradeData(_lftrade));
+		*/
+		TCDateTime tcdt(tv);
+		if (tcdt.get_time().hour() == 14 &&
+			tcdt.get_time().minute() > 27)
+		{
+			_vm[_lftrade._instr_key][price] += qty;
+			if (!_vwap_over && tcdt.get_time().minute() > 29)
+			{
+				//compute vwap
+				for (VWAPMap::iterator it = _vm.begin(); it != _vm.end(); ++it)
+				{
+					double vwap = 0;
+					double tot_qty = 0;
+					PQPMap& pqp = (*it).second;
+					for (PQPMap::iterator ki = pqp.begin(); ki != pqp.end(); ++ki)
+					{
+						tot_qty += ki->second;
+						vwap += ki->first*ki->second;
+					}
+					if (tot_qty == 0)
+						vwap = 0;
+					else
+						vwap /= tot_qty;
+					// report vwap for lftrade._instr_key
+					BMModel::instance()->send(new LFVWAPData((*it).first, tv, vwap));
+				}
+				_vwap_over = true;
+			}
+		}
+		return;
+	} // got Bid or Offer, check if we had non zero group and report it
+	else if (ctr._tv_b != ACE_Time_Value::zero)
+	{
+		ctr._tv_e = tv;
+		_lftrade._instr_key = prev_depth._instr_key;
+
+		for (size_t i = 0; i < ctr._trade_group.size(); ++i)
+		{
+			Trade& trade = ctr._trade_group[i];
+			_lftrade._trade = trade._pqp;
+
+			if (trade._tv_t > ctr._tv_b && trade._tv_t < ctr._tv_e)
+			{
+				_lftrade._t = trade._tv_t;
+			}
+			else
+			{
+				_lftrade._t = ctr._tv_b;
+				if (i > 0 && trade._tv_t != ctr._trade_group[i - 1]._tv_t)
+					ctr._millsec++;
+												
+				_lftrade._t.usec(_lftrade._t.usec() + ctr._millsec);
+				//------------------------------------------------------
+				// reporting
+				//
+				TCDateTime d_b(ctr._tv_b), d_e(ctr._tv_e);
+				TCDateTime d_t(trade._tv_t);
+				Z::report_alert("sec_id[%d] trade time %s out of depth %s %s, trade(%f, millsec %d)",
+					sec_id,
+					d_t.as_string().c_str(), d_b.as_string().c_str(), d_e.as_string().c_str(),
+					_lftrade._trade._p, ctr._millsec);
+				//------------------------------------------------------
+			}
+			BMModel::instance()->send(new LFTradeData(_lftrade));
+		}
+		ctr.clear();
+	}
+
+	if (_trades_only)
+		return;
+
+	if (prev_depth._t != tv && prev_depth._bid[0].good() && prev_depth._ask[0].good())
+	{
+		// group has finished, compare with the sent group and if different sent
+		if (TCComparePrice::diff(prev_sent._ask[0]._p, prev_depth._ask[0]._p) != 0 ||
+			TCComparePrice::diff(prev_sent._bid[0]._p, prev_depth._bid[0]._p) != 0)
+		{
+			BMModel::instance()->send(new LFDepthDataReader(prev_sent));
+			prev_sent = prev_depth;
+		}
+	}
+
+	prev_depth._t = tv;
+
+	if (v[3] == "B")
+	{
+		if (TCComparePrice::diff(price, prev_depth._bid[0]._p) == 0)
+		{
+			prev_depth._bid[0].reset(price, qty);
+			if (!_repeat_bbo)
+			{
+				prev_depth._t = tv;
+				return;
+			}
+		}
+		prev_depth._bid[0].reset(price, qty);
+	}
+	else if (v[3] == "O")
+	{
+		if (TCComparePrice::diff(price, prev_depth._ask[0]._p) == 0)
+		{
+			prev_depth._ask[0].reset(price, qty);
+			if (!_repeat_bbo)
+			{
+				prev_depth._t = tv;
+				return;
+			}
+		}
+		prev_depth._ask[0].reset(price, qty);
+	}
+	else
+		return;
+}
+//======================================================================
+

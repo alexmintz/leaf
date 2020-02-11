@@ -1,0 +1,3380 @@
+/*
+*
+*	© Copyright 2011 by TAF Co. All rights reserved.
+*
+*/
+
+#include "leaf/LFMomentumData.h"
+#include <cstdlib> 
+#include <set>
+#include <cfloat>
+#include <iomanip>
+#include "gsl/gsl_fit.h"
+#include "gsl_stats_spearman.h"
+
+//======================================================================
+//======================================================================
+LFDataPoint::LFDataPoint(const std::string& key_)
+ :_key(key_),
+	_l(0),
+	_w(0),
+	_p(0),
+ 	_eng(0),
+	_activity(0),
+	_p_activity(0),
+	_v_activity(0),
+	_corr(0),
+	_u_vol(0),
+	_u_tran(0),
+	_d_vol(0),
+	_d_tran(0)
+{
+}
+//======================================================================
+LFDataPoint::~LFDataPoint()
+{
+}
+
+//======================================================================
+const char* LFDataPoint::header()
+{
+	return ",S_KEY,S_T,L,W,P,ENG,ACTIVITY,P_ACTIVITY,V_ACTIVITY,CORR,U_VOL,U_TRAN,D_VOL,D_TRAN,COM";
+}
+//======================================================================
+void LFDataPoint::body_to_stream(std::ostream& os) const
+{
+	os	<< "," << _key;
+	os << "," << _s_t_str;
+	os << "," << _l;
+	os << "," << _w ;
+	os << "," << _p ;
+	os << "," << _eng ;
+	os << "," << _activity ;
+	os << "," << _p_activity;
+	os << "," << _v_activity;
+	os << "," << _corr;
+	os << "," << _u_vol;
+	os << "," << _u_tran;
+	os << "," << _d_vol;
+	os << "," << _d_tran;
+	os << "," << _comment;
+		
+}
+//======================================================================
+std::ostream& operator<<(std::ostream& os, const LFDataPoint& d_)
+{
+	d_.to_stream(os);
+
+	d_.body_to_stream(os);
+	return os;
+}
+//======================================================================
+ bool operator<<(ACE_OutputCDR& strm, const LFDataPoint& d_)
+{
+	if (!d_.to_cdr(strm)) 
+	  return false;
+	if (!(strm << d_._key)) 
+	  return false;
+	if (!(strm << d_._s_t)) 
+	  return false;
+	if (!(strm << d_._s_t_str)) 
+	  return false;
+	if (!(strm << d_._l)) 
+	  return false;
+	if (!(strm << d_._w)) 
+	  return false;
+	if (!(strm << d_._p)) 
+	  return false;
+	if (!(strm << d_._eng)) 
+	  return false;
+	if (!(strm << d_._activity)) 
+	  return false;
+	if (!(strm << d_._p_activity))
+		return false;
+	if (!(strm << d_._v_activity))
+		return false;
+	if (!(strm << d_._corr))
+		return false;
+	if (!(strm << d_._u_vol))
+		return false;
+	if (!(strm << d_._u_tran))
+		return false;
+	if (!(strm << d_._d_vol))
+		return false;
+	if (!(strm << d_._d_tran))
+		return false;
+	if (!(strm << d_._comment))
+	  return false;
+	return true;
+ }
+
+bool operator>>(ACE_InputCDR& strm, LFDataPoint& d_)
+{
+	if (!d_.from_cdr(strm)) 
+	  return false;
+	if (!(strm >> d_._key)) 
+	  return false;
+	if (!(strm >> d_._s_t)) 
+	  return false;
+	if (!(strm >> d_._s_t_str)) 
+	  return false;
+	if (!(strm >> d_._l)) 
+	  return false;
+	if (!(strm >> d_._w)) 
+	  return false;
+	if (!(strm >> d_._p)) 
+	  return false;
+	if (!(strm >> d_._eng)) 
+	  return false;
+	if (!(strm >> d_._activity)) 
+	  return false;
+	if (!(strm >> d_._p_activity))
+		return false;
+	if (!(strm >> d_._v_activity))
+		return false;
+	if (!(strm >> d_._corr))
+		return false;
+	if (!(strm >> d_._u_vol))
+		return false;
+	if (!(strm >> d_._u_tran))
+		return false;
+	if (!(strm >> d_._d_vol))
+		return false;
+	if (!(strm >> d_._d_tran))
+		return false;
+	if (!(strm >> d_._comment))
+	  return false;
+	return true;
+}
+//======================================================================
+void LFDataPoint::reset(const ACE_Time_Value& t_, double l_, double w_,
+	double p_, double eng_, double activity_, double p_activity_, double v_activity_, double corr_,
+	double u_vol_, double u_tran_, double d_vol_, double d_tran_)
+{
+	_s_t = t_;
+	_s_t_str = TCTimestamp(_s_t).c_str();
+	_t = t_;
+	_run = BMModel::instance()->run_num();
+	_l = l_;
+	_w = w_;
+	_p = p_;
+	_eng = eng_;
+	_activity = activity_;
+	_p_activity = p_activity_;
+	_v_activity = v_activity_;
+	_corr = corr_;
+	_u_vol = u_vol_;
+	_u_tran = u_tran_;
+	_d_vol = d_vol_;
+	_d_tran = d_tran_;
+	_comment.clear();
+}
+
+//=================================================================================
+bool lf_compare_point_st(const LFPoint& s1_, const LFPoint& s2_)
+{
+	return s1_._s_t < s2_._s_t;
+}
+//======================================================================
+//======================================================================
+void LFStore_Volume::sided_volume(const LFPoint& from_, const LFPoint& to_, size_t below_scale_)
+{
+
+	size_t below_s = below_scale_;
+	if (below_s > _s_store.size())
+		below_s = _s_store.size();
+
+	for (size_t si = below_s; si > 0; --si)
+	{
+		if (!_f_b.valid())
+		{
+			sided_volume_i(from_, to_, si - 1);
+		}
+		else
+		{
+			sided_volume_i(from_, _f_b, si - 1);
+			sided_volume_i(_f_e, to_, si - 1);
+		}
+	}
+}
+void LFStore_Volume::sided_volume_i(LFPoint from_, LFPoint to_, size_t scale_)
+{
+
+	if (to_._s_t <= from_._s_t)
+		return;
+
+	const LFClusterVec& scope_vec = _s_store[scale_];
+
+	LFClusterVec::const_iterator b = std::upper_bound(scope_vec.begin(), scope_vec.end(), from_, lf_compare_point_st);
+
+	if (b == scope_vec.end())
+		return;
+
+	LFClusterVec::const_iterator e = std::upper_bound(b, scope_vec.end(), to_, lf_compare_point_st);
+	for (LFClusterVec::const_iterator i = b; i < e; ++i)
+	{
+		if (from_._s_t <= (*i)._cluster_t && (*i)._s_t <= to_._s_t)
+		{
+			if (!_f_b.valid() || (*i)._cluster_t < _f_b._s_t)
+				(*i).fill_cluster_point(_f_b);
+			if (!_f_e.valid() || _f_e._s_t < (*i)._s_t)
+				_f_e = *i;
+
+			if ((*i)._side == _side)
+			{
+				_vol += (*i)._cluster_vol;
+				_tran += (*i)._cluster_tran;
+			}
+		}
+	}
+}
+
+//======================================================================
+//======================================================================
+LFPointStore::LFPointStore(LFMarketModel* model_)
+	: _model(model_),
+	_index_dt(60000),
+	_s_store(LFBoxTrends::NUMBER_OF_TRENDS, LFClusterVec())
+{
+}
+LFPointStore::~LFPointStore() 
+{
+}
+
+void LFPointStore::reset()
+{
+	_s_t = ACE_Time_Value::zero;
+	_s_index_t = ACE_Time_Value::zero;
+	_index.clear();
+	_tt.clear();
+	_t.clear();
+	_w.clear();
+	_eng.clear();
+	_p.clear();
+	_activity.clear();
+	_p_activity.clear();
+	_v_activity.clear();
+	_corr.clear();
+	_u_vol.clear();
+	_u_tran.clear();
+	_d_vol.clear();
+	_d_tran.clear();
+	_levels.clear();
+	_boxes.clear();
+	_trade_list.clear();
+	LFScopeStore(LFBoxTrends::NUMBER_OF_TRENDS, LFClusterVec()).swap(_s_store);
+	_to_report.clear();
+
+}
+
+void LFPointStore::fill_point(LFDataPoint& dp_, size_t ind_) const
+{
+	dp_.reset(_tt[ind_], _t[ind_], _w[ind_], 
+		_p[ind_], _eng[ind_], _activity[ind_], _p_activity[ind_], _v_activity[ind_], _corr[ind_],
+			_u_vol[ind_], _u_tran[ind_], _d_vol[ind_], _d_tran[ind_]);
+}
+
+void LFPointStore::fill_last_point(LFDataPoint& dp_) const
+{
+	dp_.reset();
+	if(_s_t == ACE_Time_Value::zero || _t.empty())
+		return;
+	
+	fill_point(dp_, _t.size() - 1);
+}
+
+size_t LFPointStore::find(const ACE_Time_Value& t_) const
+{
+	if (_s_index_t == ACE_Time_Value::zero)
+		return _tt.size();
+
+	ACE_Time_Value s_bar_t = _index_dt.bar_time(t_);
+
+	long s_ind = _index_dt.index(_s_index_t, s_bar_t);
+	if (s_ind < 0 || (size_t)s_ind >= _index.size())
+		return _tt.size();
+	std::vector<ACE_Time_Value>::const_iterator b = _tt.begin() + _index[s_ind];
+	std::vector<ACE_Time_Value>::const_iterator e = _tt.end();
+	if ((size_t)(s_ind + 1) < _index.size())
+		e = _tt.begin() + _index[s_ind + 1];
+	if(b == e)
+		return _tt.size();
+	std::vector<ACE_Time_Value>::const_iterator f = std::lower_bound(b, e, t_);
+	if (f == e)
+		return _tt.size();
+	return f - _tt.begin();
+}
+const LFBox* LFPointStore::find_box(const LFSide* side_) const
+{
+	for (LFBoxList::const_iterator i = _boxes.begin(); i != _boxes.end(); ++i)
+	{
+		const LFBox& si = *i;
+		if (si._side == side_)
+			return &si;
+	}
+	return 0;
+}
+
+void LFPointStore::set_volume(LFCluster& c_, size_t below_scale_) const
+{
+	c_.reset_volume();
+	if (!c_.cluster_valid())
+		return;
+
+	if (below_scale_ == 0)
+	{
+		size_t s_ind = find(c_._s_t);
+		if (s_ind >= _tt.size())
+			return;
+		size_t c_ind = find(c_._cluster_t);
+		if (c_ind >= _tt.size())
+			return;
+
+		c_.set_volume(_u_vol[s_ind] + _d_vol[s_ind] - _u_vol[c_ind] - _d_vol[c_ind], 
+			_u_tran[s_ind] + _d_tran[s_ind] - _u_tran[c_ind] - _d_tran[c_ind]);
+	}
+	else
+	{
+		// fill from _s_store
+
+		LFStore_Volume v(_s_store, c_._side);
+
+		LFPoint c_point;
+		c_.fill_cluster_point(c_point);
+
+		v.sided_volume(c_point, c_, below_scale_);
+		c_.set_volume(v._vol, v._tran);
+	}
+
+}
+
+bool LFPointStore::add_point(const ACE_Time_Value& t_, double eng_, double p_)
+{
+	if(_s_t == ACE_Time_Value::zero)
+	{
+		_s_t = t_;
+		_index_dt = BMTT_msec_s(_model->_point_store_dt_sec*1000);
+		_s_index_t = _index_dt.bar_time(_s_t);
+		_index.clear();
+		//		Z::report_info("----- store first point -- %Q.%d", t_.sec(), t_.usec());
+	}
+	if( t_ < _s_t)
+		return false;
+
+	double ll = LF::length_from_t(t_ - _s_t);
+	if(_t.size() > 0 && ll <= _t.back())
+		return false;
+	_tt.push_back(t_);
+
+	//index
+	ACE_Time_Value s_bar_t = _index_dt.bar_time(t_);
+
+	long s_ind = _index_dt.index(_s_index_t, s_bar_t);
+	size_t tt_ind = _tt.size() - 1;
+
+	while (_index.size() <= (size_t)s_ind)
+		_index.push_back(tt_ind);
+
+	_t.push_back(ll);
+	_w.push_back(1);
+	_eng.push_back(eng_);
+	_p.push_back(p_);
+	_activity.push_back(0);
+	_p_activity.push_back(0);
+	_v_activity.push_back(0);
+	_corr.push_back(0);
+	//calculate total volume and transactions from internal trade list
+	double u_vol = _u_vol.size() > 0 ? _u_vol.back() : 0;
+	double u_tran = _u_tran.size() > 0 ? _u_tran.back() : 0;
+	double d_vol = _d_vol.size() > 0 ? _d_vol.back() : 0;
+	double d_tran = _d_tran.size() > 0 ? _d_tran.back() : 0;
+
+	LFTradePointList::iterator i = _trade_list.begin();
+
+	for (; i != _trade_list.end() && (*i)._t <= t_; ++i)
+	{
+		if ((*i)._side->value() == LF::s_BUY)
+		{
+			u_vol += (*i)._trade._q;
+			u_tran += 1;
+		}
+		else
+		{
+			d_vol += (*i)._trade._q;
+			d_tran += 1;
+		}
+	}
+	_trade_list.erase(_trade_list.begin(), i);
+
+	_u_vol.push_back(u_vol);
+	_u_tran.push_back(u_tran);
+	_d_vol.push_back(d_vol);
+	_d_tran.push_back(d_tran);
+	return true;
+}
+
+bool LFPointStore::add_virt_point(const ACE_Time_Value& t_, double eng_, double p_)
+{
+	if(!would_add_virt_point(t_))
+		return false;
+	return add_point(t_, eng_, p_);
+}
+bool LFPointStore::would_add_virt_point(const ACE_Time_Value& t_) const
+{
+	if(_s_t == ACE_Time_Value::zero || _t.size() == 0 || t_ < _s_t
+		|| LF::length_from_t(t_ - _s_t) - _t.back() < _model->_smoothness_min_l)
+		return false;
+	return true;
+}
+size_t LFPointStore::get_n(double l_, double weight_factor_, double weight_prec_, size_t min_n_)
+{
+
+	if(min_n_ == 0)
+		min_n_ = 3;
+	if(_t.size() <= min_n_)
+		return 0;
+	double ll = _t.back();
+	for(size_t i = min_n_ + 1;  i <= _t.size(); ++i)
+	{
+		size_t ind = _t.size() - i;
+		double tl = ll - _t[ind];
+
+		if(tl >= l_)
+		{
+			return i - 1;
+		}
+		if(weight_factor_ > 0)
+			_w[ind] = LF::round(exp(-tl*weight_factor_ / l_), weight_prec_);
+		else if(weight_factor_ == 0)
+			_w[ind] = LF::round((l_ - tl) / l_, weight_prec_);
+	}
+	return 0;
+
+}
+void LFPointStore::find_point(LFDataPoint& dp_, double p_limit_, const LFSide* p_side_, double max_l_) const
+{
+	dp_.reset();
+	if(_s_t == ACE_Time_Value::zero || _t.empty())
+		return;
+	
+	double l_limit = _t[_t.size() - 1] - max_l_;
+	for(size_t i = _t.size(); i > 0; --i)
+	{
+		if(_t[i-1] < l_limit)
+		{
+			fill_point(dp_, i-1);
+			return;
+		}
+		if(p_side_->b_diff(_p[i-1], p_limit_) > 0)
+		{
+			fill_point(dp_, i-1);
+			return;
+		}
+
+	}
+}
+//======================================================================
+void LFPointStore::find_tip(LFCluster& tip_, const LFCluster& c_, double min_v_) const
+{
+	tip_.reset();
+	if(_s_t == ACE_Time_Value::zero || _t.empty() || !c_.cluster_valid() || c_._s_t <= _s_t)
+	{
+		return;
+	}
+
+	for(size_t i = _t.size(); i > 0 && _tt[i-1] >= c_._cluster_t; --i)
+	{
+		if(_tt[i-1] < c_._s_t)
+		{
+			LFCluster tmp = c_;
+			tmp.set_cluster(_tt[i - 1], _p[i - 1], _model->_tick_size);
+			if(tmp._cluster_v > min_v_ 
+				&& (!tip_.valid() || tmp._cluster_s >= tip_._cluster_s))
+			{
+				tip_ = tmp;
+			}
+		}
+	}
+}
+//======================================================================
+void LFPointStore::add_trade(const LFTradePoint& tp_)
+{
+	if (_tt.size() > 0 && tp_._t <= _tt.back())
+	{
+		if (tp_._side->value() == LF::s_BUY)
+		{
+			_u_vol.back() += tp_._trade._q;
+			_u_tran.back() += 1;
+		}
+		else
+		{
+			_d_vol.back() += tp_._trade._q;
+			_d_tran.back() += 1;
+		}
+	}
+	else
+	{
+		_trade_list.push_back(tp_);
+	}
+}
+//======================================================================
+LFMatchPtr LFPointStore::make_report(const std::string& name_, const std::string& key_base_, const LFSide* side_) const
+{
+	LFMatchPtr m;
+	m.reset(new LFMatch(name_, name_ + "_" + key_base_, false));
+	m->reset(side_, _tt.back(), _p.back());
+	return m;
+}
+//======================================================================
+LFMatchPtr LFPointStore::make_report(const std::string& name_, const std::string& key_base_, const LFBox& box_) const
+{
+	LFMatchPtr m = make_report(name_, key_base_, box_._side);
+	m->_box = box_;
+	return m;
+}
+//======================================================================
+void LFPointStore::report(const LFMatchPtr& match_)
+{
+	_to_report.push_back(match_);
+}
+//======================================================================
+void LFPointStore::report(const std::string& name_, const std::string& key_base_, const LFBox& box_, bool out_file_)
+{
+	if (!out_file_)
+		return;
+	report(make_report(name_, key_base_, box_));
+}
+
+//======================================================================
+//======================================================================
+LFBoxTrend::LFBoxTrend() 
+: Papa(TREND_SIZE+2),
+_p_store(0),
+_scale(TREND_SIZE + 2),
+_avg_l(0),
+_avg_v(0),
+_avg_s(0),
+_avg_cnt(0),
+_min_l(0),
+_min_v(0),
+_trend_side(0),
+_force_side(0),
+_in_trend(false),
+_hard_p(0),
+_soft_p(0),
+_hard_p_limit(0),
+_exit_hard_end_pct(0),
+_exit_soft_end_pct(0),
+_just_crossed_pin(TREND_SIZE + 2),
+_just_confirmed_pin(TREND_SIZE + 2),
+_just_ended_side(0)
+
+{
+}
+//======================================================================
+void LFBoxTrend::init(LFPointStore* p_store_, const std::string& prefix_, size_t scale_)
+{
+	_p_store = p_store_;
+	_prefix = prefix_;
+	_scale = scale_;
+
+	if (_p_store != 0)
+	{
+		set_key(_p_store->_model->_name + "_" + _prefix);
+	}
+
+}
+
+//======================================================================
+const LFBox& LFBoxTrend::operator[](size_t i) const 
+{ 
+	return Papa::operator[](i); 
+}
+//======================================================================
+LFBox& LFBoxTrend::operator[](size_t i) 
+{ 
+	return Papa::operator[](i); 
+}
+//======================================================================
+size_t LFBoxTrend::size() const 
+{ 
+	return Papa::size(); 
+}
+
+//======================================================================
+void LFBoxTrend::reset()
+{ 
+	Papa(TREND_SIZE+2).swap(*this); 
+	_avg_l = 0;
+	_avg_v = 0;
+	_avg_s = 0;
+	_avg_cnt = 0;
+	_min_l = 0;
+	_min_v = 0;
+	_action.clear();
+	_trend_side = 0;
+	_force_side = 0;
+	_in_trend = false;
+	_hard_p = 0;
+	_soft_p = 0;
+	_hard_p_limit = 0;
+	_limits.reset();
+	_exit_hard_end_pct = 0;
+	_exit_soft_end_pct = 0;
+	_just_crossed_pin = size();
+	_just_confirmed_pin = size();
+	_just_ended_side = 0;
+	_crl_bias_min_l = 0;
+	_crl_bias_min_v = 0;
+	if (_p_store != 0)
+	{
+		std::string base = "LFModel:" + _p_store->_model->_market + ":crl_" + _prefix + "_";
+
+		_crl_bias_min_l = Z::get_setting_double(base + "bias_min_l", 0.5);
+		_crl_bias_min_v = Z::get_setting_double(base + "bias_min_v", 0.5);
+
+	}
+
+}
+//======================================================================
+void LFBoxTrend::set_action()
+{
+	std::ostringstream os;
+	if(_p_store->_model->_crl_bias_full_action)
+	{
+		os << std::setprecision(1) << std::fixed 
+			<< "[" << _avg_l << "_" << _avg_v << "_" << _avg_s << "]";
+	}
+	os << _action;
+	
+	Papa& self = *this;
+	self[0]._comment = os.str();
+}
+//======================================================================
+void LFBoxTrend::set_default_params()
+{
+	set_min(_avg_l*_crl_bias_min_l, _avg_v*_crl_bias_min_v);
+}
+
+//======================================================================
+void LFBoxTrend::reset_action()
+{
+	Papa& self = *this;
+	_action.clear();
+	self[0]._comment.clear();
+}
+//======================================================================
+size_t LFBoxTrend::find_ind(const LFSide* side_, const ACE_Time_Value& t_) const
+{
+	size_t sz = size();
+	const Papa& self = *this;
+	for (size_t i = 0; i < sz; ++i)
+	{
+		if (self[i]._max_t < t_)
+			return sz;
+		if (self[i]._side == side_ && self[i]._max_t == t_)
+			return i;
+	}
+	return sz;
+}
+//======================================================================
+size_t LFBoxTrend::find_ind_best(const LFSide* side_, const ACE_Time_Value& t_) const
+{
+	size_t sz = size();
+	const Papa& self = *this;
+	for (size_t i = 0; i < sz; ++i)
+	{
+		if (self[i].valid() && self[i]._max_t <= t_)
+		{
+			if (self[i]._side == side_)
+				return i;
+			return i == 0 ? sz : i - 1;
+		}
+	}
+	return sz;
+}
+//======================================================================
+size_t LFBoxTrend::find_ind_before(const LFSide* side_, const ACE_Time_Value& t_) const
+{
+	size_t sz = size();
+	const Papa& self = *this;
+	for(size_t i = 0; i < sz; ++i)
+	{
+		if(self[i]._side == side_ && self[i]._max_t < t_)
+			return i;
+	}
+	return sz;
+}
+//======================================================================
+void LFBoxTrend::find_indices(const LFCluster& c_, size_t& pin_, size_t& bin_) const
+{
+	const Papa& self = *this;
+	pin_ = find_ind_best(c_._side, c_._s_t);
+	//if (TCComparePrice::z(self[pin_]._max_p - c_._s_p) != 0)
+	//	pin_ = size();
+	if (pin_ < size() && self[pin_]._max_t != c_._s_t)
+		pin_ = size();
+	bin_ = find_ind_best(c_._side->contra_s(), c_._cluster_t);
+}
+
+//======================================================================
+void LFBoxTrend::model_send_trend(const std::string& comment_, const ACE_Time_Value& t_, bool out_file_) const
+{
+	size_t r_size = 4;
+	if (!out_file_)
+	{
+		if (_exit_hard_end_pct == 0)
+			return;
+		out_file_ = true;
+		r_size = 1;
+	}
+	const Papa& self = *this;
+	std::ostringstream os;
+	os << std::setprecision(2) << std::fixed;
+	os << _trend_side << "_" << _force_side << "_"
+		<< (_in_trend ? "1" : "0") << "@(" << _limits[0]._s_p << "_" << _limits[1]._s_p << ")_"
+		<< comment_;
+	std::string key = _key + "_trend";
+	for (size_t i = 0; i < r_size && i < size(); ++i)
+	{
+		std::ostringstream os1;
+		os1 << i << "__" << os.str();
+		LF::model_send(self[i], os1.str(), t_, out_file_, key);
+	}
+}
+//======================================================================
+void LFBoxTrend::model_send(const std::string& comment_, const ACE_Time_Value& t_, bool out_file_, const std::string& key_suffix_) const
+{
+	if (!out_file_)
+		return;
+	const Papa& self = *this;
+	std::string key = _key + key_suffix_;
+	for (size_t i = 0; i < size(); ++i)
+	{
+		std::ostringstream os;
+		os << comment_ << "_" << i;
+		LF::model_send(self[i], os.str(), t_, out_file_, key);
+	}
+}
+//======================================================================
+void LFBoxTrend::model_send(size_t ind_, const std::string& comment_, const ACE_Time_Value& t_, bool out_file_, const std::string& key_suffix_) const
+{
+	if (!out_file_)
+		return;
+	const Papa& self = *this;
+	std::string key = _key + key_suffix_;
+	std::ostringstream os;
+	os << comment_ << "_" << ind_;
+	LF::model_send(self[ind_], os.str(), t_, out_file_, key);
+}
+//======================================================================
+void LFBoxTrend::clear_just_flags()
+{
+	_just_crossed_pin = size();
+	_just_confirmed_pin = size();
+	_just_ended_side = 0;
+}
+
+//======================================================================
+void LFBoxTrend::push_box(const LFBox& b_)
+{
+	Papa& self = *this;
+	const LFSide* eff_side = self[0]._side->contra_s();
+	LFBox tmp = b_;
+	tmp.reset_side(eff_side);
+	LFBox cont;
+	tmp.split_min(cont, _p_store->_model->_tick_size);
+	if(cont.valid())
+	{
+		self[0].merge(cont, self[0]._side->sign(), true);
+		update_w(0);
+	}
+	calc_bias(0);
+
+	tmp._pre_p_charge = self[0]._p_charge - self[0]._max_p_charge;
+	tmp._pre_l = LF::length_from_t(self[0]._c_t - self[0]._max_t);
+	tmp.update_slopes();
+
+	for(size_t i = size(); i > 1; --i)
+		self[i-1] = self[i-2];
+
+	self[0] = tmp;
+	update_w(0);
+	update_avg();
+}
+
+//======================================================================
+void LFBoxTrend::merge_box(const LFBox& b_)
+{
+	Papa& self = *this;
+	if (!self[0].valid())
+	{
+//AK moved init to check_set ended
+//AK	self[0] = b_;
+//AK	update_w(0);
+		return;
+	}
+
+	if (self[0]._c_t < b_._c_t)
+		self[0].update_current(b_._c_t, b_._c_p, _p_store->_model->_tick_size);
+	update_w(0);
+	calc_bias(0);
+//	_action = "M";
+}
+//======================================================================
+void LFBoxTrend::replace_box(const LFBox& b_)
+{
+	Papa& self = *this;
+	self[0] = b_;
+	update_w(0);
+}
+//======================================================================
+bool LFBoxTrend::set_ended(size_t ind_)
+{
+	Papa& self = *this;
+	if (ind_ > size() || !self[ind_].valid())
+		return false;
+	if (self[ind_].ended())
+		return false;
+	self[ind_].set_ended();
+	_just_ended_side = self[ind_]._side;
+	if (self[ind_]._w.valid())
+		self[ind_]._w._pattern.set(LF::pb_ENDED);
+	return true;
+}
+//======================================================================
+LFJoinIndex LFBoxTrend::join(size_t ind_)
+{
+	Papa& self = *this;
+	if(ind_ + 3 > size() || !self[ind_ + 2].valid())
+		return LFJoinIndex(-1, 0);
+
+	LFJoinIndex ind((long)ind_, 2);
+	if (ind_ > 0 && self[ind_]._side->v(self[ind_ + 2]._max_p, self[ind_]._max_p, _p_store->_model->_tick_size) < 0)
+		ind.first = (long)ind_ - 1;
+	if (ind_ == 0 && self[ind_]._side->v(self[ind_ + 2]._max_p, self[ind_]._max_p, _p_store->_model->_tick_size) < 0)
+		ind.second = 1;
+
+	for (size_t ii = 0; ii < ind.second; ++ii)
+	{
+		if (self[ind.first + ii + 1]._pinned)
+			return LFJoinIndex(-1, 0);
+	}
+	size_t m_ind = ind.first + ind.second;
+	const LFSide* m_side = self[m_ind]._side;
+	LFBox tmp = self[m_ind];
+	tmp._w.reset();
+	for (size_t ii = m_ind; ii > ind.first; --ii)
+		tmp.merge(self[ii - 1], m_side->sign());
+
+	tmp.reset_ended();
+	for(size_t i = ind.first; i < size() - ind.second; ++i)
+	{
+		self[i] = self[i + ind.second];
+		self[i + ind.second].reset();
+	}
+
+	self[ind.first] = tmp;
+	update_w(ind.first);
+	calc_bias(ind.first);
+
+	return ind;
+}
+//======================================================================
+bool LFBoxTrend::joinable(size_t ind_, std::string& reason_)
+{
+	Papa& self = *this;
+	if(!self[ind_].valid())
+		return false;
+	if(_min_l <= 0 && _min_v <= 0)
+		return false;
+
+	if((_min_l <= 0 || self[ind_]._w_l < _min_l)
+		&& (_min_v <= 0 || self[ind_]._w_v < _min_v))
+	{
+		std::ostringstream os;
+		os << std::setprecision(1) << std::fixed;
+		os << "[" << self[ind_]._w_l << "_" << _min_l
+			<< "_lv_"
+			<< self[ind_]._w_v << "_" << _min_v << "]";
+		reason_ = os.str();
+		return true;
+	}
+	return false;
+}
+
+//======================================================================
+LFJoinIndex LFBoxTrend::check_join(size_t ind_, std::string& reason_)
+{
+	Papa& self = *this;
+	if(ind_ < 1 || ind_ + 3 > size() || !self[ind_ + 2].valid())
+		return LFJoinIndex(-1, 0);
+
+	if(!joinable(ind_, reason_))
+		return LFJoinIndex(-1, 0);
+
+	return join(ind_);
+
+}
+//======================================================================
+LFJoinIndex LFBoxTrend::check_join(std::string& reason_)
+{
+	if(!back().valid())
+		return LFJoinIndex(-1, 0);
+	LFJoinIndex j = check_join(1, reason_);
+	if(j.first >= 0)
+		return j;
+	return check_join(2, reason_);
+}
+//======================================================================
+LFJoinIndex LFBoxTrend::check_join(const LFBoxTrend& child_, size_t ind_, std::string& reason_)
+{
+	Papa& self = *this;
+	if (ind_ < 1 || ind_ + 3 > size() || !self[ind_ + 2].valid())
+		return LFJoinIndex(-1, 0);
+
+	if (check_not_ended(ind_, child_, reason_))
+		return join(ind_ - 1);
+	return LFJoinIndex(-1, 0);
+}
+//======================================================================
+LFJoinIndex LFBoxTrend::check_join(const LFBoxTrend& child_, std::string& reason_)
+{
+	if (!back().valid())
+		return LFJoinIndex(-1, 0);
+	LFJoinIndex j = check_join(child_, 1, reason_);
+	if (j.first >= 0)
+		return j;
+	reason_ += "_";
+	return check_join(child_, 2, reason_);
+}
+//======================================================================
+bool LFBoxTrend::check_not_ended(size_t ind_, const LFBoxTrend& child_, std::string& reason_)
+{
+	Papa& self = *this;
+	if (ind_ < 1)
+		return false;
+	if (!self[ind_].valid())
+		return false;
+	if (self[ind_]._pinned)
+	{
+		reason_ += "pinned";
+		return false;
+	}
+
+	double p = self[ind_ - 1]._w._s_p;
+	// check for E_x
+	if (ind_ + 1 < size() && self[ind_ + 1].valid()
+		&& self[ind_ + 1].value(p, _p_store->_model->_tick_size) < 0)
+	{
+		reason_ += "x";
+		return false;
+	}
+	// check for E_touch
+	if (_p_store->_model->_crl_end_on_touch
+		&& ind_ + 1 < size() && self[ind_ + 1].valid()
+		&& self[ind_ + 1].value(p, _p_store->_model->_tick_size) == 0)
+	{
+		reason_ += "touch";
+		return false;
+	}
+	// check for E_exp
+	size_t sz = child_.size();
+	for (size_t i = 0; i < sz; ++i)
+	{
+		const LFBox& ch_roll = child_[i];
+		if (!ch_roll.valid() || !ch_roll.exp_valid())
+		{
+			std::ostringstream os;
+			os << i << "_notvalid";
+			reason_ += os.str();
+			return false;
+		}
+
+		if (ch_roll._max_t < self[ind_ - 1]._w._s_t)
+		{
+			if (ch_roll._max_t <= self[ind_]._w._s_t)
+			{
+				if (i == 0 && !ch_roll.ended())
+				{
+					std::ostringstream os;
+					os << i << "_0NOTENDED";
+					reason_ += os.str();
+					return true;
+				}
+
+				if (ch_roll._side == self[ind_]._side
+					&& self[ind_]._w.value(ch_roll._w._s_p, _p_store->_model->_tick_size) == 0
+					&& ch_roll.in_zero_v(p, _p_store->_model->_tick_size) >= 0)
+				{
+					std::ostringstream os;
+					os << i << "_EXP";
+					reason_ += os.str();
+					return true;
+				}
+				std::ostringstream os;
+				os << i << "_last";
+				reason_ += os.str();
+				return false;
+			}
+			if (ch_roll._side == self[ind_]._side
+				&& self[ind_]._w.value(ch_roll._w._s_p, _p_store->_model->_tick_size) >= 0
+				&& (i > 0 || ch_roll.ended()))
+			{
+				if (ch_roll.in_zero_v(p, _p_store->_model->_tick_size) < -0.9)
+				{
+					std::ostringstream os;
+					os << i << "_exp";
+					reason_ += os.str();
+					return false;
+				}
+			}
+		}
+	}
+
+	reason_ += "none";
+	return false;
+}
+//======================================================================
+bool LFBoxTrend::check_init(const LFBoxTrend& child_)
+{
+	if (_p_store == 0)
+		return false;
+	size_t ch_pin = child_.ended_ind();
+	if (!child_[ch_pin + 2]._w.cluster_valid())
+		return false;
+	if (child_[ch_pin + 2]._w.value(child_[ch_pin]._w._s_p, _p_store->_model->_tick_size) > 0
+		|| child_[ch_pin + 2]._w.value(child_[ch_pin]._w._cluster_p, _p_store->_model->_tick_size) > child_[ch_pin + 2]._w._cluster_v)
+	{
+		return false;
+	}
+	Papa& self = *this;
+
+	self[0].reset_from(child_[ch_pin + 2]);
+	self[0].merge(child_[ch_pin + 1], self[0]._side->sign());
+	self[0].merge(child_[ch_pin], self[0]._side->sign());
+
+	self[0].set_w(_p_store->_model->_tick_size);
+	if (self[0]._w._cluster_v > _p_store->_model->_crl_tip_min_ticks)
+	{
+		double minv = std::max(self[0]._w._cluster_v*_p_store->_model->_crl_tip, _p_store->_model->_crl_tip_min_ticks);
+		_p_store->find_tip(self[0]._tip, self[0]._w, minv);
+		_p_store->set_volume(self[0]._tip);
+	}
+	_p_store->set_volume(self[0]._w, _scale);
+
+	return true;
+}
+//======================================================================
+bool LFBoxTrend::check_set_ended(const LFBox& b_, const LFBoxTrend& charge_trend_, bool force_ended_)
+{
+	if (_p_store == 0)
+		return false;
+
+	Papa& self = *this;
+	if (!self[0].valid())
+	{
+		// init
+		if (!check_init(charge_trend_))
+			return false;
+	}
+		
+	if (self[0].ended())
+		return false;
+
+	if(force_ended_)
+	{
+		set_ended(0);
+//AK		self[0]._pinned = true;
+		_action = "E_f";
+		return true;
+	}
+
+	double p = _p_store->_p.back();
+
+	size_t ch_pin = charge_trend_.peak_ended_ind(self[0]._side);
+	if (!charge_trend_.same_wave(self[0]._w)
+		&& charge_trend_[ch_pin].valid()
+		&& charge_trend_[ch_pin].exp_valid()
+		&& ((charge_trend_[ch_pin]._w._s_t >= self[0]._w._s_t	&& self[0]._w.value(charge_trend_[ch_pin]._w._s_p, _p_store->_model->_tick_size) >= 0)
+//		|| (charge_trend_[ch_pin]._w._s_t < self[0]._w._s_t && self[0]._w.value(charge_trend_[ch_pin]._w._s_p, _p_store->_model->_tick_size) == 0)
+		)
+		&& charge_trend_[ch_pin].in_zero_v(p, _p_store->_model->_tick_size) < -0.9)
+	{
+		set_ended(0);
+		_action = "E_exp";
+		return true;
+	}
+	if (charge_trend_[0]._side == self[0]._side
+		&& charge_trend_[0].exp_valid()
+		&& ((charge_trend_[0]._w._s_t >= self[0]._w._s_t	&& self[0]._w.value(charge_trend_[0]._w._s_p, _p_store->_model->_tick_size) >= 0)
+//		|| (charge_trend_[0]._w._s_t < self[0]._w._s_t && self[0]._w.value(charge_trend_[0]._w._s_p, _p_store->_model->_tick_size) == 0)
+		)
+		&& charge_trend_[0].in_zero_v(p, _p_store->_model->_tick_size) < -0.9)
+	{
+		set_ended(0);
+		_action = "E_0exp";
+
+		return true;
+	}
+
+	if (self[1].valid()
+		&& self[1]._w.value(p, _p_store->_model->_tick_size) < 0)
+	{
+		set_ended(0);
+		_action = "E_x";
+		return true;
+	}
+	if (_p_store->_model->_crl_end_on_touch
+		&& self[1].valid()
+		&& self[1]._w.value(p, _p_store->_model->_tick_size) == 0)
+	{
+		set_ended(0);
+		_action = "E_touch";
+		return true;
+	}
+	
+
+	double from_max_l = self[0]._w.length(_p_store->_tt.back());
+	double from_max_v = self[0]._w.value(_p_store->_p.back(), _p_store->_model->_tick_size);
+	if(_avg_s > 0 && _avg_v > 0
+		&& self[0].tip_s() > _avg_s*_p_store->_model->_crl_g0_end_on_tip_s
+		&& self[0].tip_v() > _avg_v*_p_store->_model->_crl_g0_end_on_tip_v
+		&& from_max_l > self[0].tip_l()*_p_store->_model->_crl_tip_end_l
+		&& from_max_v > 0)
+	{
+		set_ended(0);
+		_action = "E_s";
+		return true;
+	}
+	if(self[0]._w_l + from_max_l > _avg_l*_p_store->_model->_crl_g0_end_on_max_l)
+	{
+		set_ended(0);
+		_action = "E_l";
+		return true;
+	}
+
+	if (self[0]._w._cluster_v + from_max_v > _avg_v*_p_store->_model->_crl_g0_end_on_max_v)
+	{
+		set_ended(0);
+		_action = "E_v";
+		return true;
+	}
+	return false;
+}
+//======================================================================
+bool LFBoxTrend::same_wave(const LFCluster& c_) const
+{
+	const Papa& self = *this;
+	size_t pin = peak_ended_ind(c_._side);
+	return self[pin]._w._s_t >= c_._s_t && 
+		self[pin]._w._cluster_t <= c_._cluster_t;
+}
+//======================================================================
+bool LFBoxTrend::check_set_ended(const LFBoxTrend& child_)
+{
+	if (_p_store == 0)
+		return false;
+	Papa& self = *this;
+	if (!self[0].valid())
+	{
+		// init 
+		if (!check_init(child_))
+			return false;
+	}
+
+	if (self[0].ended())
+		return false;
+	
+	double p = _p_store->_p.back();
+
+	if (self[1].valid()
+		&& self[1].value(p, _p_store->_model->_tick_size) < 0)
+	{
+		set_ended(0);
+		_action = "E_x";
+		return true;
+	}
+	if (_p_store->_model->_crl_end_on_touch
+		&& self[1].valid()
+		&& self[1].value(p, _p_store->_model->_tick_size) == 0)
+	{
+		set_ended(0);
+		_action = "E_touch";
+		return true;
+	}
+
+	size_t ch_pin = child_.peak_ended_ind(self[0]._side);
+	size_t ch_bin = child_.bounce_ended_ind(self[0]._side);
+
+	if (!child_.same_wave(self[0]._w)
+		&& ch_pin < ch_bin && child_[ch_pin].valid() && child_[ch_pin].exp_valid()
+		&& child_[ch_pin]._w._s_t >= self[0]._w._s_t 
+		&& self[0]._w.value(child_[ch_pin]._w._s_p, _p_store->_model->_tick_size) >= 0)
+	{
+		// child is in bounce
+		if (child_[ch_pin].in_zero_v(p, _p_store->_model->_tick_size) < -0.9)
+		{
+			set_ended(0);
+			_action = "E_exp";
+			return true;
+		}
+		if (_p_store->_model->_crl_end_on_vol && child_[0]._side != self[0]._side)
+		{
+			LFCluster tmp;
+			tmp.reset(child_[0]._w);
+			tmp.set_cluster(self[0]._w, _p_store->_model->_tick_size);
+			_p_store->set_volume(tmp, _scale);
+			if (tmp._cluster_vol > self[0]._w._cluster_vol)
+			{
+				set_ended(0);
+				_action = "E_vol";
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+//======================================================================
+void LFBoxTrend::check_set_pattern()
+{
+	if (_p_store == 0)
+		return;
+	Papa& self = *this;
+	if (self.size() < 2)
+		return;
+	double p = _p_store->_p.back();
+
+	if (self[0].valid() && self[1].valid())
+	{
+		if (!self[0]._w._pattern.test(LF::pb_ACCELERATED)
+			&& self[1].in_exp_v(self[0]._w._s_p, _p_store->_model->_tick_size) < -0.9)
+		{
+			self[0]._w._pattern.set(LF::pb_ACCELERATED);
+		}
+	}
+	for (size_t i = self.size(); i > 0; --i)
+	{
+		size_t ind = i - 1;
+		if (self[ind]._w.valid()
+			&&(ind > 0 || self[ind].ended()))
+		{
+			if (!self[ind]._w._pattern.test(LF::pb_CROSSED)
+				&& self[ind]._w.value(p, _p_store->_model->_tick_size) < -0.9)
+			{
+				_just_crossed_pin = ind;
+				self[ind]._w._pattern.set(LF::pb_CROSSED);
+			}
+		}
+	}
+}
+//======================================================================
+void LFBoxTrend::update_w(size_t ind_)
+{
+	Papa& self = *this;
+	if(ind_ + 2 > size() || !self[ind_ + 1].valid())
+	{
+		self[ind_].reset_w();
+		self[ind_].reset_exp();
+		return;
+	}
+	self[ind_].set_w(self[ind_ + 1], _p_store->_model->_tick_size);
+
+	if(_p_store == 0)
+		return;
+
+	if(self[ind_]._w._cluster_v > _p_store->_model->_crl_tip_min_ticks)
+	{
+		double minv = std::max(self[ind_]._w._cluster_v*_p_store->_model->_crl_tip, _p_store->_model->_crl_tip_min_ticks);
+		_p_store->find_tip(self[ind_]._tip, self[ind_]._w, minv);
+		_p_store->set_volume(self[ind_]._tip);
+	}
+
+	_p_store->set_volume(self[ind_]._w, _scale);
+
+}
+//======================================================================
+void LFBoxTrend::update_avg()
+{
+	Papa& self = *this;
+
+	// add self[1] to moving averages
+	const LFBox& b = self[1];
+	if(_p_store->_model->_crl_bias_avg_size < 2 || !b.valid() )
+		return;
+	if(_avg_cnt == 0)
+	{
+		if(_p_store->_model->_crl_bias_avg_size + 1 > size() || !self[_p_store->_model->_crl_bias_avg_size].valid())
+			return;
+
+		_avg_cnt = (long)_p_store->_model->_crl_bias_avg_size;
+		_avg_l = 0;
+		_avg_v = 0;
+		_avg_s = 0;
+		for(size_t i = 1; i <= _p_store->_model->_crl_bias_avg_size; ++i)
+		{
+			_avg_l += self[i]._w_l;
+			_avg_v += self[i]._w_v;
+			_avg_s += self[i]._max_p_slope;
+		}
+		_avg_l /= _avg_cnt;
+		_avg_v /= _avg_cnt;
+		_avg_s /= _avg_cnt;
+	}
+	else
+	{
+		_avg_l = (_avg_l*(_avg_cnt - 1) + b._w_l)/_avg_cnt;
+		_avg_v = (_avg_v*(_avg_cnt - 1) + b._w_v)/_avg_cnt;
+		_avg_s = (_avg_s*(_avg_cnt - 1) + b._max_p_slope)/_avg_cnt;
+	}
+}
+//======================================================================
+void LFBoxTrend::calc_bias(size_t ind_)
+{
+	Papa& self = *this;
+	self[ind_]._bias = 0;
+	self[ind_]._pias = 0;
+	self[ind_]._d_pias = 0;
+	self[ind_].reset_exp();
+
+	if(ind_ + 3 > size() || !self[ind_].valid())
+		return;
+	double bf0 = 2;
+	double bf1 = 3;
+	double bf2 = 1;
+	if (!self[ind_ + 2].valid())
+	{
+		if (!self[_p_store->_model->_crl_bias_init_ind].valid())
+			return;
+		if (self[ind_ + 1].valid())
+		{
+			bf0 = 2; bf1 = 1; bf2 = 0;
+		}
+		else
+		{
+			bf0 = 1; bf1 = 0; bf2 = 0;
+		}
+	}
+	//if (_p_store->_model->_crl_bias_use_density)
+	//	self[ind_]._bias = (bf0*self[ind_]._w._cluster_density - bf1*self[ind_ + 1]._w._cluster_density + bf2*self[ind_ + 2]._w._cluster_density)*self[ind_]._side->sign();
+	//else
+	//	self[ind_]._bias = (bf0*self[ind_]._w._cluster_vol - bf1*self[ind_ + 1]._w._cluster_vol + bf2*self[ind_ + 2]._w._cluster_vol)*self[ind_]._side->sign();
+
+	if (_p_store->_model->_crl_bias_use_density)
+	{
+		double tot = self[ind_]._w._cluster_density + self[ind_ + 1]._w._cluster_density;
+		self[ind_]._bias = tot <= 0 ? 0 : self[ind_]._side->sign()*self[ind_]._w._cluster_density / tot;
+	}
+	else
+	{
+		double tot = self[ind_]._w._cluster_vol + self[ind_ + 1]._w._cluster_vol;
+		self[ind_]._bias = tot <= 0 ? 0 : self[ind_]._side->sign()*self[ind_]._w._cluster_vol / tot;
+	}
+
+	self[ind_]._pias = bf0*self[ind_].rax_p_charge() + bf1*self[ind_ + 1].rax_p_charge() + bf2*self[ind_ + 2].rax_p_charge();
+
+	self[ind_]._d_pias = self[ind_]._pias - self[ind_ + 1]._pias;
+
+	//pias peak
+	self[ind_].set_exp_contra_p(calc_exp_contra_p(ind_, self[ind_]._pias));
+	if (self[ind_]._side->zsign(self[ind_]._pias - self[ind_+1]._pias) > 0
+		&& self[ind_]._side->zsign(self[ind_ + 1]._pias) > 0)
+	{
+		self[ind_].set_exp_zero_p(calc_exp_contra_p(ind_, self[ind_ + 1]._pias));
+	}
+	else
+	{
+		self[ind_].set_exp_zero_p(self[ind_].exp_contra_p());
+	}
+}
+
+//======================================================================
+double LFBoxTrend::calc_exp_contra_p(size_t ind_, double exp_contra_pias_)
+{
+	Papa& self = *this;
+	if (ind_ + 3 > size() || !self[ind_].valid())
+		return 0;
+	double bf0 = 2;
+	double bf1 = 3;
+	double bf2 = 1;
+	if (!self[ind_ + 1].valid())
+	{
+		bf0 = 2; bf1 = 1; bf2 = 0;
+	}
+
+
+	double indep_pias = bf1*self[ind_].rax_p_charge() + bf2*self[ind_ + 1].rax_p_charge();
+	
+	double exp_sax_p = self[ind_]._side->contra_s()->sign()*(exp_contra_pias_ - indep_pias)/bf0; 
+	return self[ind_]._side->p_from_v(self[ind_]._max_p, exp_sax_p, _p_store->_model->_tick_size);
+//	return w.price_from_value(exp_sax_p, _p_store->_model->_tick_size);
+
+}
+//======================================================================
+//======================================================================
+LFBoxTrends::LFBoxTrends() 
+: Papa(NUMBER_OF_TRENDS, LFBoxTrend())
+{
+}
+//======================================================================
+void LFBoxTrends::init(LFPointStore* p_store_)
+{
+	Papa& self = *this;
+
+	for(size_t i = 0; i < size(); ++i)
+	{
+		std::ostringstream prefix;
+		prefix << "g" << i;
+		self[i].init(p_store_, prefix.str(), i);	 
+	}
+
+}
+//======================================================================
+size_t LFBoxTrends::size() const 
+{ 
+	return Papa::size(); 
+}
+
+//======================================================================
+void LFBoxTrends::reset()
+{ 
+	Papa& self = *this;
+	for(size_t i = 0; i < size(); ++i)
+		self[i].reset();	 
+}
+//======================================================================
+bool LFBoxTrends::operator==(const LFBoxTrends& s) const
+{
+	const Papa& self = *this;
+	for (size_t i = 0; i < size(); ++i)
+	{
+		if (self[i] != s[i])
+			return false;
+	}
+	return true;
+}
+
+//======================================================================
+size_t LFBoxTrends::find_scope(const LFCluster& c_, size_t& pin_, size_t& bin_) const
+{
+	const Papa& self = *this;
+	size_t sz = size();
+	pin_ = LFBoxTrend::TREND_SIZE + 2;
+	bin_ = LFBoxTrend::TREND_SIZE + 2;
+	size_t h_ind = sz;
+	size_t h_pin = LFBoxTrend::TREND_SIZE + 2;
+	size_t h_bin = LFBoxTrend::TREND_SIZE + 2;
+	for (size_t i = sz; i > 0 && h_ind == sz; --i)
+	{
+		const LFBoxTrend& scp = self[i - 1];
+		scp.find_indices(c_, h_pin, h_bin);
+		if (h_pin < scp.size() && h_bin < scp.size())
+			h_ind = i-1;
+	}
+
+	if (h_ind == sz)
+		return sz;
+
+	for (size_t i = 0; i < h_ind; ++i)
+	{
+		const LFBoxTrend& scp = self[i];
+
+		scp.find_indices(c_, pin_, bin_);
+
+		if (pin_ < scp.size() && bin_ < scp.size() && bin_ == pin_ + 1)
+		{
+			return i;
+		}
+	}
+	pin_ = h_pin;
+	bin_ = h_bin;
+
+	return h_ind;
+}
+
+//======================================================================
+size_t LFBoxTrends::find_bounce_scope(const LFCluster& c_, bool exact_pin_) const
+{
+	const Papa& self = *this;
+	size_t sz = size();
+
+	for (size_t i = sz; i > 0; --i)
+	{
+		size_t s_ind = i - 1;
+		const LFBoxTrend& scp = self[s_ind];
+		if (exact_pin_)
+		{
+			size_t pin;
+			size_t bin;
+			scp.find_indices(c_, pin, bin);
+
+			if (pin < scp.size() && pin >= scp.ended_ind())
+			{
+				return s_ind;
+			}
+		}
+		else
+		{
+			size_t pin = scp.peak_ended_ind(c_._side);
+			if (pin < scp.size() && c_._s_t <= scp[pin]._max_t)
+				return s_ind;
+		}
+	}
+	return sz;
+}
+//======================================================================
+void LFBoxTrends::clear_just_flags()
+{
+	Papa& self = *this;
+	for(size_t i = 0; i < size(); ++i)
+		self[i].clear_just_flags();	 
+}
+//======================================================================
+void LFBoxTrends::model_send(size_t scale_, const std::string& comment_, const ACE_Time_Value& t_, bool out_file_, const std::string& key_suffix_) const
+{
+	if(!out_file_)
+		return;
+	const Papa& self = *this;
+	size_t b = 0;
+	size_t e = size();
+	if(scale_ < e)
+	{
+		b = scale_;
+		e = scale_+1;
+	}
+	for(size_t i = b; i < e; ++i)
+	{
+		std::ostringstream os;
+		os << comment_ << "__" << i;
+		self[i].model_send(os.str(), t_, out_file_, key_suffix_);
+	}
+}
+
+//======================================================================
+const char* LFEngPoint::header()
+{
+	return ",S_KEY,S_T,ID,SIDE,S_P,STRENGTH,COMMENT,M,ENG";
+}
+//----------------------------------------------------------------------
+std::ostream& operator<<(std::ostream& os, const LFEngPoint& d_)
+{
+	d_.to_stream(os);
+	os << "," << d_._key;
+	os << "," << d_._s_t_str;
+	os << "," << d_._wave_id << "_" << d_._peak_id << "_" << d_._sub_id;
+	os << "," << d_._side;
+	os << "," << d_._s_p;
+	os << "," << d_._strength;
+	os << "," << d_._comment;
+	os << "," << d_._m;
+	os << "," << d_._eng;
+	return os;
+
+}
+//======================================================================
+//======================================================================
+//======================================================================
+bool operator<<(ACE_OutputCDR& strm, const LFMomentumData_P& d_)
+{
+	if (!(strm << d_._m)) 
+	  return false;
+	return true;
+}
+
+//======================================================================
+//======================================================================
+bool operator>>(ACE_InputCDR& strm, LFMomentumData_P& d_)
+{
+	if (!(strm >> d_._m)) 
+	  return false;
+	return true;
+}
+
+//======================================================================
+std::ostream& operator<<(std::ostream& os, const LFMomentumData_P& d_)
+{
+
+	os << TCTimestamp(d_._t).c_str() ;
+	os << "," << d_._p ;
+	os << "," << d_._m ;
+	os << "," << d_._eng ;
+	//os << "," << d_._move_id ;
+	os << "," << d_._cur_move ;
+	//os << "," << d_._prev_move ;
+	
+	return os;
+}
+//======================================================================
+void LFMomentumData_P::from_csv_vec(int& ind_, const std::vector<const char*>& v_)
+{
+	_m = atof(v_[ind_++]);
+}
+//======================================================================
+//======================================================================
+LFMomentumData_P::LFMomentumData_P(LFMarketModel* model_)
+	: _m(0),
+	_last_m(0),
+	_eng(0),
+	_p(0),
+	_t_vol(0),
+	_u_vol(0),
+	_d_vol(0),
+	_t(ACE_Time_Value::zero),
+	_move_id(0),
+	_activity(0),
+	_p_activity(0),
+	_v_activity(0),
+	_corr(0),
+	_last_corr(0),
+	_corr_dyn_high(0),
+	_corr_dyn_low(0),
+	_cur_move(model_),
+	_prev_move(model_),
+	_starting_move(model_),
+	_trend_side(0),
+	_in_trend(false),
+	_trend_hard_p(0),
+	_trend_soft_p(0)
+
+{
+}
+//======================================================================
+LFMomentumData_P::~LFMomentumData_P()
+{
+}
+
+//======================================================================
+void LFMomentumData_P::reset()
+{
+	_md = LFDepthData();
+	_m = 0;
+	_last_m = 0;
+	_eng = 0;
+	_p = 0;
+	_t_vol = 0;
+	_u_vol = 0;
+	_d_vol = 0;
+	_t = ACE_Time_Value::zero;
+	_move_id = 0;
+	_activity = 0;
+	_p_activity = 0;
+	_v_activity = 0;
+	_corr = 0;
+	_last_corr = 0;
+	_corr_dyn_high = 0;
+	_corr_dyn_low = 0;
+	_box.reset();
+	_box_trends.reset();
+	_latter_box.reset();
+	_former_box.reset();
+	_charge_trend.reset();
+	_sharp_box.reset();
+	_cur_move.reset();
+	_prev_move.reset();
+	_starting_move.reset();
+	_cur_peak.reset();
+	_form_peak.reset();
+	_trend_side = 0;
+	_in_trend = false;
+	_trend_hard_p = 0;
+	_trend_soft_p = 0;
+	_bias_bp.reset();
+	_bias_bx.reset();
+}
+//======================================================================
+//======================================================================
+LFMomentumData::LFMomentumData(const std::string& market_, const std::string& momentum_)
+:	LFMomentumData_P(&_model),
+	_model(market_, momentum_),
+	_p_store(new LFPointStore(&_model)),
+	_last_trade_side(0),
+	_i_count(0)
+
+{
+	_cur_move.init();
+	_prev_move.init();
+	_starting_move.init();
+	_levels_key = _model._name + "_levels";
+	_box_key = _model._name + "_box";
+	_datapoint_key = _model._name + "_dpoint";
+	_box.set_key(_box_key);
+
+	_box_trends.init(_p_store.get());
+
+	_charge_trend.init(_p_store.get(), "gc", 0);
+	reset();
+}
+//======================================================================
+LFMomentumData::~LFMomentumData() 
+{
+}
+
+//======================================================================
+void LFMomentumData::load_and_reset()
+{
+	_model.reset();
+	_model.load();
+	reset();
+}
+//======================================================================
+void LFMomentumData::reset()
+{
+	LFMomentumData_P::reset();
+	_w.reset();
+	_cur_w.reset();
+	_form_w.reset();
+	_p_store->reset();
+	_lf_m.reset();
+	_lf_eng.reset();
+	_tick_limit_tv = ACE_Time_Value::zero;
+	_last_trade_side = 0;
+	_last_trade.reset();
+	_i_count = 0;
+}
+//======================================================================
+void LFMomentumData::clear_just_flags()
+{
+	LFWavePtr w = _w;
+	while(w.get() != 0)
+	{
+		w->_out.clear_just_flags();
+		w = w->_next;
+	}
+	_cur_peak.clear_just_flags();
+	_form_peak.clear_just_flags();
+
+	_box_trends.clear_just_flags();
+
+}
+//======================================================================
+bool LFMomentumData::process_missed_tick(const ACE_Time_Value& t_)
+{
+	ACE_Time_Value t = _tick_limit_tv;
+	if (_tick_limit_tv == ACE_Time_Value::zero)
+		return false;
+	
+	LFPoint dp;
+	dp.reset(0, t);
+	dp.reset_identity(_i_count);
+
+	///AK TODO 
+	//if (BMModel::instance()->is_live()
+	//	&& t_ > _t + _model._tick_timeout_max)
+	//{
+	//	_tick_limit_tv = t_ + _model._tick_timeout;
+	//	_last_trade.reset();
+	//	Z::report_error("-- TICK_TIMEOUT -- %s_%s -- %s > %s",
+	//		_model._market.c_str(), _model._momentum.c_str(), TCTimestamp(t_).c_str(), TCTimestamp(_t).c_str());
+	//	if (_model._out_file_points_trace)
+	//	{
+	//		LF::model_send(dp, "TICK_TIMEOUT", t_, _model._out_file_points_trace, _datapoint_key + "_in");
+	//	}
+	//	return false;
+	//}
+
+	std::string comment = "MISSED";
+	if (_last_trade.valid())
+	{
+		if (_model._out_file_points_trace)
+		{
+			LF::model_send(dp, "MISSED_T", t_, _model._out_file_points_trace, _datapoint_key + "_in");
+		}
+		return process_last_trade(t_);
+	}
+
+	if (_model._out_file_points_trace)
+	{
+		LF::model_send(dp, "MISSED_P", t_, _model._out_file_points_trace, _datapoint_key + "_in");
+	}
+
+	return add_data(t, _p, comment);
+
+}
+
+//======================================================================
+bool LFMomentumData::process_depth(const LFDepthData& md_)
+{
+	LFPoint dp;
+	dp.reset(0, md_._t);
+	dp.reset_identity(_i_count);
+
+	if (!md_._ask[0].good() || !md_._bid[0].good())
+	{
+		if (_model._out_file_points_trace)
+		{
+			LF::model_send(dp, "0_bbo", md_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+		}
+		return false;
+	}
+	if (!(md_._bid[0]._p < md_._ask[0]._p))
+	{
+		if (_model._out_file_points_trace)
+		{
+			LF::model_send(dp, "cross_bbo", md_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+		}
+		return false;
+	}
+
+	if (_t != ACE_Time_Value::zero && md_._t < _t)
+	{
+		Z::report_error("-- OLD DEPTH -- %s_%s -- %s < %s",
+			_model._market.c_str(), _model._momentum.c_str(), TCTimestamp(md_._t).c_str(), TCTimestamp(_t).c_str());
+		if (_model._out_file_points_trace)
+		{
+			LF::model_send(dp, "old_depth", md_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+		}
+		return false;
+	}
+	_md = md_;
+	_model.set_md(md_);
+
+	double p = 0;
+	if (_last_trade_side == 0)
+	{
+		p = (md_._ask[0].p_p() + md_._bid[0].p_p()) / 2.;
+		double ticks = 0;
+		LFSide::mod_tick(p, md_._tick_size / 10., &ticks);
+		p = ticks * md_._tick_size / 10.;
+	}
+	else
+	{
+		p = _last_trade_side->contra_p(md_);
+	}
+	dp._s_p = p;
+	if (!_model._use_depth_price)
+	{
+		if (_model._out_file_points_trace)
+		{
+			LF::model_send(dp, "disabled_depth_p", md_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+		}
+		return false;
+	}
+
+	if (_t != ACE_Time_Value::zero
+		&& md_._t < _tick_limit_tv
+		&& TCComparePrice::diff(md_._bid[0]._p, _md._bid[0]._p) == 0
+		&& TCComparePrice::diff(md_._ask[0]._p, _md._ask[0]._p) == 0)
+	{
+		if (_model._out_file_points_trace)
+		{
+			LF::model_send(dp, "same_bbo", md_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+		}
+		return false;
+	}
+	check_process_last_trade(md_._t);
+
+	std::string comment = "TICK";
+
+	if (_model._out_file_points_trace)
+	{
+		LF::model_send(dp, comment, md_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+	}
+
+	return add_data(md_._t, p, comment);
+}
+//======================================================================
+bool LFMomentumData::check_process_last_trade(const ACE_Time_Value& t_)
+{
+	if (!_last_trade.valid() || (_last_trade._t + _model._same_trade_timeout) > t_)
+		return false;
+
+	return process_last_trade(t_);
+}
+//======================================================================
+bool LFMomentumData::process_last_trade(const ACE_Time_Value& t_)
+{
+	if (_model._out_file_points)
+	{
+		LFPoint dp;
+		dp.reset(_last_trade._side, _last_trade._t, _last_trade._trade.p_p());
+		dp.reset_identity(_i_count);
+		dp._strength = (long)_last_trade._trade._q;
+		LF::model_send(dp, "", t_, _model._out_file_points, _datapoint_key + "_trade");
+	}
+
+	_p_store->add_trade(_last_trade);
+
+	bool ret = add_data(_last_trade._t, _last_trade._trade.p_p(), "TRADE");
+	_last_trade.reset();
+	return ret;
+
+}
+//======================================================================
+bool LFMomentumData::process_trade(const LFTradeData& td_)
+{
+	LFPoint dp;
+	dp.reset(0, td_._t, td_._trade.p_p());
+	dp.reset_identity(_i_count);
+	dp._strength = (long)td_._trade._q;
+
+
+	if (!_md.is_valid())
+	{
+		if (_model._out_file_points_trace)
+		{
+			LF::model_send(dp, "no_md_trade", td_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+		}
+		return false;
+	}
+
+	if (_t != ACE_Time_Value::zero && (td_._t + _model._same_trade_timeout) < _t)
+	{
+		Z::report_error("-- OLD TRADE -- %s_%s -- %s < %s",
+			_model._market.c_str(), _model._momentum.c_str(), TCTimestamp(td_._t).c_str(), TCTimestamp(_t).c_str());
+		if (_model._out_file_points_trace)
+		{
+			LF::model_send(dp, "old_trade", td_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+		}
+		return false;
+	}
+	bool processed = check_process_last_trade(td_._t);
+
+	LFTradePoint tp;
+	fill_trade(tp, td_._t, td_._trade);
+	dp._side = tp._side;
+
+	std::string comment;
+
+	if (!_last_trade.valid())
+	{
+		_last_trade = tp;
+		set_limit_t(_last_trade._t);
+		comment = "TR_NEW";
+	}
+	else
+	{
+		if (tp._side == _last_trade._side)
+		{
+			comment = "TR_SAME";
+			if (tp._t > _last_trade._t)
+				_last_trade._t = tp._t;
+			_last_trade._trade._p = tp._trade._p;
+			_last_trade._trade._q += tp._trade._q;
+		}
+		else
+		{
+			comment = "TR_SIDE";
+			ACE_Time_Value next_t = _last_trade._t;
+			next_t = next_t + ACE_Time_Value(0, 1);
+
+			processed = process_last_trade(tp._t);
+			_last_trade = tp;
+			_last_trade._t = next_t;
+		}
+	}
+	if (_model._out_file_points_trace)
+	{
+		LF::model_send(dp, comment, td_._t, _model._out_file_points_trace, _datapoint_key + "_in");
+	}
+
+	return processed;
+}
+
+//======================================================================
+bool LFMomentumData::add_data(const ACE_Time_Value& t_, double p_, const std::string& comment_)
+{
+	_lf_m->add_data(p_, t_);
+	if (!_lf_m->is_collected())
+	{
+		update(1, t_, p_, comment_);
+		return false;
+	}
+	update(_lf_m->calc(), t_, p_, comment_);
+	return true;
+}
+//======================================================================
+void LFMomentumData::set_limit_t(const ACE_Time_Value& from_t_)
+{
+	ACE_Time_Value t = from_t_ + _model._tick_timeout;
+
+	if (_tick_limit_tv == ACE_Time_Value::zero || _tick_limit_tv < t)
+	{
+		_tick_limit_tv = t;
+	}
+}
+//======================================================================
+void LFMomentumData::calc_direct()
+{
+}
+//======================================================================
+void LFMomentumData::calc_waves()
+{
+	if (_starting_move.valid())
+	{
+		_prev_move = _cur_move;
+		_cur_move = _starting_move;
+		_starting_move.reset();
+	}
+	if (_cur_move.valid() && _m*_cur_move.psign() > 0.)
+	{
+		_cur_move.ended(_t, _p);
+		// AK -- TODO side from prev (allied)
+		_starting_move.reset(_prev_move, LFSide::s(LFSide::by_sign(-_m)), _t, _p, _eng, _cur_move);
+	}
+	if (!_cur_move.valid())
+		_starting_move.reset(LFSide::s(LFSide::by_sign(-_m)), _t, _p, _eng);
+
+
+	if (_starting_move.valid())
+	{
+		_starting_move._move_id = ++_move_id;
+		_starting_move.update(_m, _t, _p, _eng);
+	}
+	_cur_move.update(_m, _t, _p, _eng);
+	_prev_move.update(_m, _t, _p, _eng);
+
+	// waves handling
+	if (!_cur_move.valid())
+		return;
+	// update waves
+	LFSlope folded;
+	if (_w.get() == 0)
+	{
+		if (!_cur_move._w._in.working()
+			&& _cur_move._w._in._v > _model._min_first_peak
+			&& _cur_move._w._in._eng_v > _model._formed_eng)
+		{
+			//			_w.reset(new LFWave(&_model, _cur_move._w, t_, p_, _eng));
+			_w.reset(new LFWave(&_model));
+			_w->init();
+			_w->reset(_cur_move._w, _t, _p, _eng);
+			LF::model_send(_w->_in, "in -- new_root from move", _t, _model._out_file);
+			_w->update(_t, _p, _eng, _cur_move, _prev_move, folded);
+		}
+	}
+	else
+	{
+		_w->update(_t, _p, _eng, _cur_move, _prev_move, folded);
+	}
+
+	if (folded.valid())
+	{
+		if (folded._confirm_t == ACE_Time_Value::zero)
+			folded._confirm_t = folded._s_t;
+		folded._comment = "folded";
+		if (!add_level(folded))
+		{
+			model_send("add_level_folded", _t, true, _model._errors_key, 0);
+		}
+		else
+		{
+			calc_smoothness(folded);
+		}
+	}
+	while (_w.get() != 0
+		&& (!_w->valid() || !_w->current() || _w->exceeded()))
+	{
+		if (!_w->_out._formed)
+		{
+			//if(!_w->_out._confirmed)
+			//{
+			//	_w->_out._confirmed = true;
+			//	_w->_out._confirm_t = _t;
+			//}
+			_w->_out._formed = true;
+			_w->_out._just_formed = true;
+			_w->_out._formed_t = _t;
+			break;
+		}
+		LF::model_send(_w->_in, "in -- pop_front", _t, _model._out_file);
+		_w = _w->_next;
+		if (_w.get() != 0)
+			LF::model_send(_w->_in, "in -- new_root", _t, _model._out_file);
+	}
+	LFWavePtr w = _w;
+	// find current w
+	_cur_w.reset();
+	_form_w.reset();
+	while (w.get() != 0)
+	{
+		if (w->_out.valid())
+		{
+			if (_cur_w.get() == 0
+				&& (!w->_out._confirmed || w->_out._just_confirmed))
+			{
+				_cur_w = w;
+			}
+			if (_form_w.get() == 0
+				&& (!w->_out._formed || w->_out._just_formed))
+			{
+				_form_w = w;
+			}
+		}
+		w = w->_next;
+	}
+
+	if (_cur_w.get() != 0)
+	{
+		std::string trace_key;
+		if (_model._back_trace.in_range(_t) && _cur_w->_out._just_confirmed)
+		{
+			std::ostringstream os;
+			os << "DSC_" << _cur_w->_out._wave_id << "_" << _cur_w->_out._peak_id << "_" << _cur_w->_out._sub_id;
+			trace_key = os.str();;
+		}
+		_cur_peak = _cur_w->_out;
+		if (_cur_peak._just_confirmed)
+		{
+			if (!add_level(_cur_peak))
+			{
+				model_send("add_level_cur", _t, true, _model._errors_key, _cur_w->_wave_id);
+			}
+			else
+			{
+				calc_smoothness(_cur_peak);
+			}
+		}
+		calc_smoothness_virt(_cur_peak);
+
+	}
+	else
+	{
+		// no cur peak
+		calc_smoothness_virt(LFSlope());
+	}
+	if (_form_w.get() != 0)
+	{
+
+		_form_peak = _form_w->_out;
+	}
+
+	if (_form_peak._just_formed)
+	{
+		// add virtual level on formation point
+		if (_model._formed_add_level)
+		{
+			LFSlope s;
+			s.reset(_form_peak._side->contra_s(), _form_peak._formed_t, _form_peak._p, _form_peak._eng);
+			s._confirm_t = s._s_t;
+			if (add_level(s))
+				calc_smoothness(s);
+		}
+	}
+}
+//======================================================================
+void LFMomentumData::update(double m_, const ACE_Time_Value& t_, double p_, const std::string& comment_)
+{
+	double last_p = _p;
+	_last_m = _m;
+	_m = m_;
+	_p = p_;
+	if (_lf_eng.get() != 0)
+	{
+		_lf_eng->add_data(m_, t_);
+		_eng = _lf_eng->calc();
+	}
+	else
+	{
+		double d_eng = 0;
+		if (_t != ACE_Time_Value::zero)
+		{
+			double mm = _m;
+			if (_model._use_eng_lastm)
+				mm = _last_m;
+			d_eng += LF::length_from_t(t_ - _t)*mm;
+		}
+		_eng += d_eng;
+	}
+	_t = t_;
+	set_limit_t(_t);
+
+	if (_model._out_file_points)
+	{
+		LFEngPoint dp;
+		dp.reset(0, _t, _p);
+		dp.reset_identity(_i_count);
+		dp._m = _m;
+		dp._eng = _eng;
+		LF::model_send(dp, comment_, _t, _model._out_file_points, _datapoint_key + "_upd");
+	}
+	if (!_model._waves_on)
+		return;
+	if (_model._waves_calc_on)
+	{
+		calc_waves();
+	}
+	else
+	{
+		if (TCComparePrice::diff(_p, last_p) != 0)
+		{
+			LFSlope s;
+			s.reset(_last_trade_side, _t, _p, _eng);
+			s._confirm_t = s._s_t;
+			calc_smoothness(s);
+		}
+		else
+			calc_smoothness_virt(LFSlope());
+	}
+}
+//======================================================================
+void LFMomentumData::fill_trade(LFTradePoint& tp_, const ACE_Time_Value& t_, const TC_pqp& pqp_)
+{
+	bool check_side = false;
+	double p = 0;
+	if (_last_trade.valid())
+	{
+		p = _last_trade._trade._p;
+		check_side = true;
+	}
+	else if (_t != ACE_Time_Value::zero)
+	{
+		p = _p;
+		check_side = true;
+	}
+
+	if (check_side)
+	{
+		if (TCComparePrice::diff(pqp_._p, p) > 0)
+		{
+			_last_trade_side = LFSide::s(LF::s_BUY);
+		}
+		else if (TCComparePrice::diff(pqp_._p, p) < 0)
+		{
+			_last_trade_side = LFSide::s(LF::s_SELL);
+		}
+	}
+	if (_last_trade_side == 0)
+	{
+		_last_trade_side = LFSide::s(LF::s_BUY);
+	}
+	tp_.reset(t_, _last_trade_side, pqp_);
+
+}
+//======================================================================
+void LFMomentumData::model_send(const std::string& comment_, const ACE_Time_Value& t_, bool out_file_, const std::string& key_, long in_sub_id_) const
+{
+	LFWavePtr w = _w;
+	while(w.get() != 0)
+	{
+		w->model_send(comment_, t_, out_file_, key_, in_sub_id_);
+		w = w->_next;
+	}
+}
+
+//======================================================================
+void LFMomentumData::calc_smoothness_virt(const LFSlope& s_)
+{
+	if(s_.valid() 
+		&& _p_store->would_add_virt_point(_t)
+		&&	_p_store->add_point(s_._s_t, s_._s_eng, s_._s_p))
+	{
+		calc_point("virt_s");
+	}
+	if(_p_store->add_virt_point(_t, _eng, _p))
+		calc_point("virt");
+}
+//======================================================================
+void LFMomentumData::calc_smoothness(const LFSlope& s_)
+{
+	if(_p_store->add_point(s_._s_t, s_._s_eng, s_._s_p))
+		calc_point("s");
+	if(s_._s_t < s_._confirm_t && _p_store->add_point(s_._confirm_t, s_._eng, s_._p))
+		calc_point("conf");
+}
+
+//======================================================================
+void LFMomentumData::fill_sharp_roll(LFBox& sb_, LFCluster& etalon_, std::string& comment_,
+	tc_range<double>& pslope_, tc_range<double>& min_v_, double pslope_decline_, double max_l_)
+{
+	sb_.reset();
+	etalon_.reset();
+	if (!_box.valid())
+		return;
+	const LFSide* b_side = _box._side;
+	if (_model._crl_box_sharp_scope_charge_etalon
+		&& min_v_.in(_box._w._cluster_v) && pslope_.in(_box._w._cluster_s))
+	{
+		etalon_ = _box._w;
+	}
+	
+	for (size_t i = 0; i < _box_trends.size(); ++i)
+	{
+		LFBoxTrend& scope = _box_trends[i];
+		size_t pin = scope.peak_ind(b_side);
+		LFBox& peak = scope[pin];
+		if (!peak._w.cluster_valid())
+			return;
+		if (peak._w._s_t < _box._s_t)
+			return;
+		if (!etalon_.valid()
+			&& min_v_.in(peak._w._cluster_v) && pslope_.in(peak._w._cluster_s))
+		{
+			etalon_ = peak._w;
+		}
+		if (etalon_.valid())
+		{
+			if (etalon_._cluster_s > peak._w._cluster_s*pslope_decline_)
+			{
+				comment_ = "s_decline";
+				return;
+			}
+			if (peak._w._cluster_s < _model._crl_box_min_slope)
+			{
+				comment_ = "min_slope";
+				return;
+			}
+			if (!sb_.valid())
+			{
+				sb_ = peak;
+				sb_._w.reset_identity((long)i, (long)pin, (long)(pin + 1));
+			}
+			else if (peak._w._cluster_v > sb_._w._cluster_v)
+			{
+				LFCluster bot;
+				bot.reset(sb_._w._side, sb_._w._cluster_t, sb_._w._cluster_p);
+				bot.set_cluster(peak._w._cluster_t, peak._w._cluster_p, _model._tick_size);
+
+				if (_model._crl_box_sharp_scope_decline <= 0
+					|| sb_._w._cluster_s <= bot._cluster_s*_model._crl_box_sharp_scope_decline)
+				{
+					sb_ = peak;
+					sb_._w.reset_identity((long)i, (long)pin, (long)(pin + 1));
+				}
+				else if (_model._crl_box_sharp_scope_decline_stop)
+					return;
+			}
+
+
+			if (peak._w._cluster_s > etalon_._cluster_s)
+			{
+				etalon_ = peak._w;
+			}
+			if (peak.w_declined(pslope_decline_))
+			{
+				comment_ = "w_decline";
+				return;
+			}
+			if (_model._crl_box_sharp_scope_exact && i + 1 < _box_trends.size())
+			{
+				LFBoxTrend& up_scope = _box_trends[i+1];
+				LFBox& up_peak = up_scope[up_scope.peak_ind(b_side)];
+				if (!up_peak._w.cluster_valid() || up_peak._w._s_t < _box._s_t)
+					return;
+				for (size_t ii = pin + 4; ii < scope.size() && scope[ii]._w.valid() && up_peak._w._cluster_t < scope[ii]._max_t; ii +=2)
+				{
+					LFBox tmp = peak;
+					tmp.set_wave(scope[ii]._w, _model._tick_size);
+					if (tmp.w_declined(pslope_decline_))
+					{
+						comment_ = "ww_decline";
+						return;
+					}
+				}
+			}
+		}
+	}
+}
+//======================================================================
+void LFMomentumData::fill_sharp_box(LFBox& sb_, LFCluster& etalon_, std::string& comment_, 
+									tc_range<double>& pslope_, tc_range<double>& min_v_, double pslope_decline_, double max_l_)
+{
+	LFBoxList& bx = _p_store->_boxes;
+
+	if(bx.empty())
+	{
+		sb_.reset();
+		comment_ = "empty";
+		return;
+	}
+	LFBoxList::iterator start_i = bx.begin();
+	LFBox f_box = _box;
+	if (f_box.equal(bx.front()))
+		++start_i;
+	
+	sb_.reset();
+	etalon_.reset();
+	if(pslope_.in(f_box._max_p_slope)
+		&& min_v_.in(f_box.sax_p_charge()))
+	{
+		f_box.set_w(_model._tick_size);
+		sb_ = f_box;
+		etalon_ = f_box._w;
+		LF::model_send(etalon_, "FRONT", _t, _model._out_file_boxes, _box_key + "_etalon");
+		LF::model_send(f_box, "front", _t, _model._out_file_boxes, _box_key + "_et_box");
+
+	}
+
+	if( min_v_.in(f_box.sax_p_charge())
+		&& f_box.triggered())
+	{
+		LFCluster tr_etalon;
+		tr_etalon.reset(f_box._side, f_box._max_t, f_box._max_p);
+		LFDataPoint dp;
+		_p_store->find_point(dp, f_box._s_p, tr_etalon._side, LF::length_from_t(f_box._c_t - f_box._triggered_t));
+		if(dp.valid())
+		{
+			tr_etalon.set_cluster(dp._s_t, dp._p, _model._tick_size);
+		}
+
+		if(min_v_.in(tr_etalon._cluster_v))
+		{
+			if(tr_etalon._cluster_s < pslope_.first)
+			{
+				comment_ = "flat_etalon";
+				return;
+			}
+			etalon_ = tr_etalon; 
+			LF::model_send(etalon_, "TR_ETALON", _t, _model._out_file_boxes, _box_key + "_etalon");
+		}
+	}
+
+	LFBox tmp = f_box;
+	for(LFBoxList::iterator i = start_i; i != bx.end(); ++i)
+	{
+		LFBox si = *i;
+//		if(si._side == f_box._side && f_box._side->b_diff(si._max_p, f_box._max_p) < 0)
+		if(		f_box._side->b_diff(si._max_p, f_box._max_p) < 0
+			||	f_box._side->b_diff(si._min_p, f_box._max_p) < 0)
+		{
+			comment_ = "cross";
+			return;
+		}
+		si.merge(tmp, f_box._side->sign());
+		tmp = si;
+		if(tmp.length() > max_l_)
+		{
+			comment_ = "len";
+			return;
+		}
+
+		if(tmp._side == f_box._side
+			&& min_v_.in(tmp.sax_p_charge()))
+		{
+			tmp.set_w(_model._tick_size);
+			if (!etalon_.valid())
+			{
+				//if(tmp._max_p_slope < pslope_)
+				if(tmp._max_p_slope < pslope_.first)
+				{
+					comment_ = "minv";
+					return;
+				}
+				etalon_ = tmp._w;
+				sb_ = tmp;
+				LF::model_send(etalon_, "MIN_V", _t, _model._out_file_boxes, _box_key + "_etalon");
+				LF::model_send(tmp, "min_v", _t, _model._out_file_boxes, _box_key + "_et_box");
+			}
+			else
+			{
+				if(etalon_._cluster_s > tmp._max_p_slope*pslope_decline_)
+				{
+					comment_ = "decline";
+					return;
+				}
+				if(tmp._max_p_slope < _model._crl_box_min_slope)
+				{
+					comment_ = "min_slope";
+					return;
+				}
+				if(tmp._max_p_slope > etalon_._cluster_s)
+				{
+					etalon_ = tmp._w;
+					LF::model_send(etalon_, "EXTEND", _t, _model._out_file_boxes, _box_key + "_etalon");
+					LF::model_send(tmp, "extend", _t, _model._out_file_boxes, _box_key + "_et_box");
+				}
+
+				if(!sb_.valid() || f_box._side->zsign(tmp.rax_p_charge() - sb_.rax_p_charge()) > 0)
+				{
+					sb_ = tmp;
+				}
+			}
+		}
+	}
+}
+
+//======================================================================
+void LFMomentumData::set_wave(LFBox& b_, const LFPoint& from_)
+{
+	b_.set_wave(from_, _model._tick_size);
+	b_._w_vol = 0;
+	if (!b_._w.cluster_valid() || !from_.valid() || b_._w._s_t <= from_._s_t)
+		return;
+	if (_p_store.get() == 0)
+		return;
+
+	LFCluster tmp;
+	tmp.reset(b_._w);
+	tmp.set_cluster(from_, _model._tick_size);
+	_p_store->set_volume(tmp, _box_trends.size());
+	b_._w_vol = tmp._cluster_vol;
+}
+//======================================================================
+void LFMomentumData::box_add(LFBoxTrend& v_, const LFBox& b_, long& u_ind_, LFJoinIndex& j_ind_)
+{
+	v_._action = "M";
+	j_ind_ = LFJoinIndex(-1, 0);
+	u_ind_ = 0;
+	//
+	if (v_[0].ended())
+	{
+		// split
+		v_._action = "E";
+		LFBox bounce;
+		LFBox f = v_[0];
+		f.cut_max();
+		bounce.reset(f._side->contra_s(), f._max_t, 0, f._max_p);
+		init_merge(bounce, bounce._side->sign());
+
+		LFBoxList& bx = _p_store->_boxes;
+
+		bool add_cur = bx.empty() || bx.front()._c_t < b_._c_t;
+		if (add_cur)
+			check_merge(bounce, b_, bounce._side->sign());
+
+		LF::model_send(bounce, "I_bounce", _t, _model._out_file_boxes_trace, v_.get_key());
+
+		if(/*bounce._min_t == bounce._s_t ||*/ bounce._min_t <= bounce._max_t)
+		{
+			v_.replace_box(f);
+			LF::model_send(v_[0], "S_front", _t, _model._out_file_boxes_trace, v_.get_key());
+			v_.push_box(bounce);
+			LF::model_send(v_[0], "S_bounce", _t, _model._out_file_boxes_trace, v_.get_key());
+			u_ind_ = 1;
+			v_._action += "_1";
+		}
+		else
+		{
+			bounce.cut_max();
+			LFBox peak;
+			peak.reset(bounce._side->contra_s(), bounce._max_t, 0, bounce._max_p);
+			init_merge(peak, peak._side->sign());
+			if(add_cur)
+				check_merge(peak, b_, peak._side->sign());
+			v_.replace_box(f);
+			LF::model_send(v_[0], "S_front", _t, _model._out_file_boxes_trace, v_.get_key());
+			v_.push_box(bounce);
+			LF::model_send(v_[0], "S_bounce", _t, _model._out_file_boxes_trace, v_.get_key());
+			v_.push_box(peak);
+			LF::model_send(v_[0], "S_peak", _t, _model._out_file_boxes_trace, v_.get_key());
+			u_ind_ = 2;
+			v_._action += "_2";
+		}
+		std::string j_reason;
+		j_ind_ = v_.check_join(j_reason);
+		if (j_ind_.first >= 0)
+		{
+			std::ostringstream os;
+			os << "J[" << j_ind_.first << "_" << j_ind_.second << "]";
+			v_._action += "_" + os.str();
+			LF::model_send(v_[j_ind_.first], os.str() + j_reason, _t, _model._out_file_boxes_trace, v_.get_key());
+		}
+		v_.calc_bias(0);
+//		LF::model_send(v_[0], "ENDED", _t, _model._out_file_boxes_trace, v_.get_key());
+	}
+}
+
+//======================================================================
+void LFMomentumData::force_set_ended(size_t scale_, size_t pin_, const std::string& reason_)
+{
+	LFBoxTrend& trend = _box_trends[scale_];
+	LFBox& peak = trend[pin_];
+	if(peak.ended())
+		return;
+	trend.set_ended(pin_);
+	LF::model_send(peak, "E_" + reason_, _t, _model._out_file_boxes, trend.get_key());
+}
+//======================================================================
+void LFMomentumData::sync_scope_store(size_t scale_, long u_ind_, LFJoinIndex j_ind_)
+{
+
+	LFBoxTrend& z_scope = _box_trends[scale_];
+
+	LFClusterVec& z_store = _p_store->_s_store[scale_];
+	if (u_ind_ >= 0)
+	{
+		// update
+		if (z_store.empty())
+		{
+			LFBox b = z_scope[u_ind_];
+			if (!b._w.valid())
+				b.set_w(_model._tick_size);
+			z_store.push_back(b._w);
+			LF::model_send(z_store.back(), "empty", _t, _model._out_file_datapoints, z_scope.get_key() + "_store");
+		}
+		else
+		{
+			z_store.back() = z_scope[u_ind_]._w;
+		}
+
+		for (size_t i = u_ind_; i > 0; --i)
+		{
+			if (_model._out_file_datapoints)
+			{
+				std::ostringstream os;
+				os << "a_" << z_store.size() - 1;
+				LF::model_send(z_store.back(), os.str(), _t, _model._out_file_datapoints, z_scope.get_key() + "_store");
+			}
+			z_store.push_back(z_scope[i - 1]._w);
+		}
+	}
+	// join
+	if (j_ind_.first < 0)
+		return;
+	size_t z_i = z_store.size() - j_ind_.first - j_ind_.second - 1;
+	for (size_t i = j_ind_.first + 1; i > 0; --i, ++z_i)
+	{
+		z_store[z_i] = z_scope[i - 1]._w;
+		if (_model._out_file_datapoints)
+		{
+			std::ostringstream os;
+			os << "j_" << z_i << "_" << z_store.size();
+			LF::model_send(z_store[z_i], os.str(), _t, _model._out_file_datapoints, z_scope.get_key() + "_store");
+		}
+	}
+	z_store.erase(z_store.begin() + z_i, z_store.end());
+}
+//======================================================================
+void LFMomentumData::reset_bias(bool force_, bool add_)
+{
+	bool force_overwrite = force_ || add_;
+	reset_local_bias(force_overwrite);
+	if (add_)
+	{
+		LFBoxList& bx = _p_store->_boxes;
+		bx.push_front(_box);
+		_former_box = _latter_box;
+		_latter_box = _box;
+		_latter_box.reset_ended();
+		std::string com = "replace";
+		if (_charge_trend[0].valid() && _charge_trend[0]._side != _latter_box._side)
+		{
+			com = "add";
+			for (size_t i = _charge_trend.size(); i > 1; --i)
+				_charge_trend[i - 1] = _charge_trend[i - 2];
+
+		}
+		LFBox f = _latter_box;
+		f.cut_max();
+		_charge_trend[0] = f;
+		LF::model_send(_charge_trend[0], com, _t, _model._out_file_boxes, _box_key + "_ct");
+		LFBox b;
+		b.reset(_latter_box._side->contra_s(), _latter_box._max_t, 0, _latter_box._max_p);
+		b.merge_same(_latter_box, b._side->sign(), _model._tick_size);
+		b.set_exp_contra_p(calc_exp_contra_p(b, _latter_box.rax_p_charge(), _latter_box._pias));
+		b.set_exp_zero_p(b.exp_contra_p());
+		update_w(b);
+		for (size_t i = _charge_trend.size(); i > 1; --i)
+			_charge_trend[i - 1] = _charge_trend[i - 2];
+		_charge_trend[0] = b;
+
+		LF::model_send(_charge_trend[0], "0", _t, _model._out_file_boxes, _box_key + "_ct");
+
+	}
+
+	size_t j_scope = _box_trends.size();
+	LFJoinIndex j_ind = LFJoinIndex(-1, 0);
+	long u_ind = -1;
+	//Roll
+	LFBoxTrend& roll_trend = _box_trends[0];
+	roll_trend.set_default_params();
+	roll_trend.merge_box(_box);
+
+	if (roll_trend.check_set_ended(_box, _charge_trend, force_))
+	{
+		roll_trend.set_action();
+		LF::model_send(roll_trend[0], "", _t, _model._out_file_boxes_trace, roll_trend.get_key());
+	}
+	
+	roll_trend.reset_action();
+	box_add(roll_trend, _box, u_ind, j_ind);
+	if (j_ind.first >= 0)
+		j_scope = 0;
+	roll_trend.set_action();
+	LF::model_send(roll_trend[0], "", _t, _model._out_file_boxes, roll_trend.get_key());
+
+	roll_trend.check_set_pattern();
+	// sync with _s_store
+	sync_scope_store(0, u_ind, j_ind);
+
+//Bp etc
+	for(size_t i = 1; i < _box_trends.size(); ++i)
+	{
+		_box_trends[i].set_default_params();
+		_box_trends[i].merge_box(_box);
+		if (i == j_scope + 1)
+		{
+			std::string jreason;
+			LFJoinIndex j = _box_trends[i].check_join(_box_trends[i - 1], jreason);
+			if (j.first >= 0)
+			{
+				std::ostringstream os;
+				os << "C_J[" << j.first << "_" << j.second << "]" << jreason;
+				LF::model_send(_box_trends[i][j.first], os.str(), _t, _model._out_file_boxes, _box_trends[i].get_key());
+//				_box_trends[i - 1].model_send(jreason, _t, _model._out_file_boxes_trace, "_cjoin");
+				sync_scope_store(i, -1, j);
+				j_scope = i;
+			}
+			else
+			{
+				_box_trends[i].model_send("child_j_" + jreason, _t, _model._out_file_boxes_trace, "_cjoin");
+				//_box_trends[i-1].model_send(jreason, _t, _model._out_file_boxes_trace, "_cjoin");
+			}
+		}
+		if(_box_trends[i].check_set_ended(_box_trends[i-1]))
+		{
+			_box_trends[i].set_action();
+			LF::model_send(_box_trends[i][0], "", _t, _model._out_file_boxes_trace, _box_trends[i].get_key());
+		}
+		_box_trends[i].reset_action();
+		box_add(_box_trends[i], _box, u_ind, j_ind);
+		if (j_ind.first >= 0)
+			j_scope = i;
+		_box_trends[i].set_action();
+		LF::model_send(_box_trends[i][0], "", _t, _model._out_file_boxes, _box_trends[i].get_key());
+
+		_box_trends[i].check_set_pattern();
+		// sync with _s_store
+		sync_scope_store(i, u_ind, j_ind);
+	}
+// reporting
+	if(add_)
+		LF::model_send(_latter_box, "", _t, _model._out_file_boxes, _box_key);
+
+}
+//======================================================================
+double LFMomentumData::calc_exp_contra_p(const LFBox& b_, double p_charge_1_, double exp_contra_pias_) const
+{
+	double indep_pias = 3.*b_.rax_p_charge() + p_charge_1_;
+	double exp_sax_p = b_._side->contra_s()->sign()*(exp_contra_pias_ - indep_pias) / 2.;
+
+	return b_._side->p_from_v(_box._max_p, exp_sax_p, _model._tick_size);
+}
+//======================================================================
+void LFMomentumData::reset_local_bias(bool force_overwrite_)
+{
+	if(!_latter_box.valid() || !_former_box.valid())
+		return;
+	if(_box._s_bias == LFBox::UNKNOWN_BIAS)
+	{
+		_box._bias = _latter_box._bias;
+		_box._s_bias = _box._bias;
+	}
+	if(_box._s_pias == LFBox::UNKNOWN_BIAS)
+	{
+		_box._pias = _latter_box._pias;
+		_box._d_pias = _latter_box._d_pias;
+		_box._s_pias = _box._pias;
+	}
+
+	double latter_post_p_charge = _latter_box._p_charge - _latter_box._max_p_charge;
+
+	double p_charge_1 = 0;
+	double p_charge_2 = 0;
+	LFCluster w1;
+	LFCluster w2;
+	if (_latter_box._side == _box._side)
+	{
+		_box._pre_p_charge = 0;
+		_box._pre_l = 0;
+
+		p_charge_1 = latter_post_p_charge;
+
+		w1.reset(_box._side->contra_s(), _box._s_t, _box._s_p);
+		w1.set_cluster(_latter_box._max_t, _latter_box._max_p, _model._tick_size);
+		_p_store->set_volume(w1);
+
+		p_charge_2 = _latter_box.rax_p_charge();
+		w2 = _latter_box._w;
+
+	}
+	else
+	{
+		_box._pre_p_charge = latter_post_p_charge;
+		_box._pre_l = LF::length_from_t(_latter_box._c_t - _latter_box._max_t);
+
+		p_charge_1 = _latter_box.rax_p_charge();
+
+		w1 = _latter_box._w;
+		if (_latter_box._side == _former_box._side)
+		{
+			p_charge_2 = _former_box._p_charge - _former_box._max_p_charge;
+			w2.reset(_latter_box._side->contra_s(), _latter_box._s_t, _latter_box._s_p);
+			w2.set_cluster(_former_box._max_t, _former_box._max_p, _model._tick_size);
+			_p_store->set_volume(w2);
+		}
+		else
+		{
+			p_charge_2 = _former_box.rax_p_charge();
+			w2 = _former_box._w;
+		}
+	}
+	update_w(_box);
+
+	double bias = 0;
+	//if (_model._crl_bias_use_density)
+	//	bias = (2 * _box._w._cluster_density - 3 * w1._cluster_density + w2._cluster_density)*_box._side->sign();
+	//else
+	//	bias = (2 * _box._w._cluster_vol - 3 * w1._cluster_vol + w2._cluster_vol)*_box._side->sign();
+	if (_model._crl_bias_use_density)
+	{
+		double tot = _box._w._cluster_density + w1._cluster_density;
+		bias = tot <= 0 ? 0 : _box._side->sign()*_box._w._cluster_density / tot;
+	}
+	else
+	{
+		double tot = _box._w._cluster_vol + w1._cluster_vol;
+		bias = tot <= 0 ? 0 : _box._side->sign()*_box._w._cluster_vol / tot;
+	}
+
+	double pias = 2.*_box.rax_p_charge() + 3.*p_charge_1 + p_charge_2;
+
+	double old_pias = _box._pias;
+	if (_model._crl_bias_micro_unrestricted)
+	{
+		_box._bias = bias;
+		_box._pias = pias;
+	}
+	else
+	{
+		if (force_overwrite_)
+		{
+			if (_box._side->zsign(bias - _box._bias) > 0)
+				_box._bias = bias;
+			else if (_box._side->zsign(bias) > 0)
+				_box._bias = bias;
+			else if (_box._s_bias*bias < 0)
+				_box._bias = LFBox::BIAS_MIN_VALUE*LF::sign(_box._s_bias);
+
+
+
+			if (_box._side->zsign(pias - _box._pias) > 0)
+				_box._pias = pias;
+			else if (_box._side->zsign(pias) > 0)
+				_box._pias = pias;
+			else if (_box._s_pias*pias < 0)
+				_box._pias = LFBox::BIAS_MIN_VALUE*LF::sign(_box._s_pias);
+		}
+		else if (_box.triggered())
+		{
+			if (_box._side->zsign(bias - _box._bias) > 0)
+				_box._bias = bias;
+
+			if (_box._side->zsign(pias - _box._pias) > 0)
+				_box._pias = pias;
+		}
+	}
+	double d_pias = _box._pias - old_pias;
+	if (::fabs(d_pias) > 0.9)
+	{
+		_box._d_pias = d_pias;
+	}
+
+	_box.set_exp_contra_p(calc_exp_contra_p(_box, p_charge_1, _box._pias));
+	if (_box._side->zsign(_box._pias - _latter_box._pias) > 0
+		&& _box._side->zsign(_latter_box._pias) > 0)
+	{
+		_box.set_exp_zero_p(calc_exp_contra_p(_box, p_charge_1, _latter_box._pias));
+	}
+	//else if (_box._side->zsign(_box._pias - _former_box._pias) > 0
+	//	&& _box._side->zsign(_former_box._pias) > 0)
+
+	//{
+	//	_box.set_exp_zero_p(calc_exp_contra_p(_box, p_charge_1, _former_box._pias));
+	//}
+	else
+	{
+		_box.set_exp_zero_p(_box.exp_contra_p());
+	}
+
+}
+
+
+//======================================================================
+bool LFMomentumData::check_merge(LFBox& to_, const LFBox& from_, double sign_, bool keep_bias_) const
+{
+	if(to_._s_t < from_._s_t)
+	{
+		to_.merge(from_, sign_, keep_bias_);
+		return false;
+	}
+	to_.merge_same(from_, sign_, _model._tick_size);
+	return true;
+}
+//======================================================================
+void LFMomentumData::init_merge(LFBox& to_, double sign_) const
+{
+	const LFBoxList& bx = _p_store->_boxes;
+
+	if(bx.empty())
+	{
+		to_.reset();
+		return;
+	}
+	if(bx.front()._c_t <= to_._s_t)
+		return;
+	LFBoxList bx_merge;
+	for(LFBoxList::const_iterator i = bx.begin(); i != bx.end(); ++i)
+	{
+		const LFBox& si = *i;
+		if (si._c_t <= to_._c_t)
+			break;
+		if(si._s_t <= to_._s_t)
+		{
+			to_.merge_same(si, sign_, _model._tick_size);
+			break;
+		}
+		bx_merge.push_front(si);
+	}
+
+	for(LFBoxList::iterator i = bx_merge.begin(); i != bx_merge.end(); ++i)
+		to_.merge(*i, sign_);
+
+}
+//======================================================================
+void LFMomentumData::update_w(LFBox& b_, bool sided_volume_) const
+{
+	if (!b_.valid())
+		return;
+	b_.set_w(_model._tick_size);
+	if (_p_store.get() == 0)
+		return;
+
+	_p_store->set_volume(b_._w, sided_volume_?_box_trends.size():0);
+}
+
+//======================================================================
+void LFMomentumData::set_scope(LFBox& b_) const
+{
+	if (!b_._w.cluster_valid())
+		return;
+
+	size_t pin;
+	size_t bin;
+	size_t scp = _box_trends.find_scope(b_._w, pin, bin);
+	if (scp < _box_trends.size())
+	{
+		b_._w.reset_identity((long)scp, (long)pin, (long)bin);
+	}
+	else
+	{
+		b_._w._wave_id =  - 1;
+		b_._w._peak_id = 0;
+		b_._w._sub_id = 0;
+	}
+
+}
+//======================================================================
+void LFMomentumData::set_bounce(LFBounce& bnc_, const LFCluster& peak_, const ACE_Time_Value& t_, double p_)
+{
+	if (!peak_.valid() || _p_store.get() == 0)
+	{
+		bnc_.reset();
+		return;
+	}
+	bnc_.reset(peak_._side->contra_s(), t_, p_);
+	bnc_.set_cluster(peak_._s_t, peak_._s_p, _model._tick_size);
+
+	_p_store->set_volume(bnc_, true);
+
+	bnc_.set_bounce(peak_);
+}
+
+//======================================================================
+void LFMomentumData::calc_point(const std::string& comment_)
+{
+	size_t n = _p_store->get_n(_model._smoothness_l, _model._smoothness_decay_factor, _model._smoothness_weight_round);
+	if(n == 0)
+	{
+		_t_vol = 0;
+		_u_vol = 0;
+		_d_vol = 0;
+		_activity = 0;
+		_p_activity = 0;
+		_v_activity = 0;
+		_corr = -1;
+		_last_corr = 1;
+		_corr_dyn_high = _model._crl_high;
+		_corr_dyn_low = _model._crl_low;
+		LFDataPoint dp;
+		_p_store->fill_last_point(dp);
+		LF::model_send(dp, comment_, _t, _model._out_file_datapoints, _datapoint_key);
+
+	}
+	else
+	{
+		size_t ind = _p_store->_t.size() - n;
+		// activity
+		double du = 0;
+		double ds = 0;
+		double dpu = 0;
+		double dps = 0;
+		double dvu = 0;
+		double dvs = 0;
+
+		for(size_t i = 1; i < n; ++i)
+		{
+			double c = _p_store->_eng[ind + i] - _p_store->_eng[ind + i - 1];
+			double pc = _p_store->_p[ind + i] - _p_store->_p[ind + i - 1];
+			double vc =		(_p_store->_u_vol[ind + i] - _p_store->_d_vol[ind + i])
+						-	(_p_store->_u_vol[ind + i - 1] - _p_store->_d_vol[ind + i - 1]);
+			if (c >= 0)
+				du += c*_p_store->_w[ind + i];
+			else
+				ds -= c*_p_store->_w[ind + i];
+			if (pc >= 0)
+				dpu += pc*_p_store->_w[ind + i];
+			else
+				dps -= pc*_p_store->_w[ind + i];
+			if (vc >= 0)
+				dvu += vc*_p_store->_w[ind + i];
+			else
+				dvs -= vc*_p_store->_w[ind + i];
+		}
+
+		if(du + ds > 0)
+			_activity = LF::round((du - ds)*100./(du + ds), _model._smoothness_activity_round);
+		if (dpu + dps > 0)
+			_p_activity = LF::round((dpu - dps)*100. / (dpu + dps), _model._smoothness_activity_round);
+		if (dvu + dvs > 0)
+			_v_activity = LF::round((dvu - dvs)*100. / (dvu + dvs), _model._smoothness_activity_round);
+
+		_u_vol = _p_store->_u_vol[_p_store->_p.size() - 1];
+		_d_vol = _p_store->_d_vol[_p_store->_p.size() - 1];
+
+		_t_vol =  _u_vol - _d_vol;
+		ACE_Time_Value t = _p_store->_s_t + LF::t_from_length(_p_store->_t[_p_store->_t.size() - 1]);
+		ACE_Time_Value last_t = _p_store->_s_t + LF::t_from_length(_p_store->_t[_p_store->_t.size() - 2]);
+		double dl = _p_store->_t[_p_store->_t.size() - 1] - _p_store->_t[_p_store->_t.size() - 2];
+		double p = _p_store->_p[_p_store->_p.size() - 1];
+		double last_p = _p_store->_p[_p_store->_p.size() - 2];
+
+		// correlation
+		double last_act = _p_store->_activity[_p_store->_activity.size() - 2];
+		double last_p_act = _p_store->_p_activity[_p_store->_p_activity.size() - 2];
+		double last_v_act = _p_store->_v_activity[_p_store->_v_activity.size() - 2];
+		_p_store->_activity.back() = _activity;
+		_p_store->_p_activity.back() = _p_activity;
+		_p_store->_v_activity.back() = _v_activity;
+		if (::fabs(_activity) == 100. && last_act*LF::sign(_activity) >= 100.)
+			_p_store->_activity.back() = last_act + LF::sign(last_act)*0.001;
+		if (::fabs(_p_activity) == 100. && last_p_act*LF::sign(_p_activity) >= 100.)
+			_p_store->_p_activity.back() = last_p_act + LF::sign(last_p_act)*0.001;
+		if (::fabs(_v_activity) == 100. && last_v_act*LF::sign(_v_activity) >= 100.)
+			_p_store->_v_activity.back() = last_v_act + LF::sign(last_v_act)*0.001;
+		size_t n = _p_store->get_n(_model._smoothness_corr_l, -1.);
+		ind = _p_store->_t.size() - n;
+
+		_last_corr = _corr;
+		double* act_base = &_p_store->_activity[ind];
+		if(_model._use_volume_corr)
+			act_base = &_p_store->_v_activity[ind];
+
+		if(_model._spearman_corr)
+		{
+			LF_gsl_stats_spearman_workspace * w = LF_gsl_stats_spearman_alloc (n);
+			gsl_vector_view vgroupa = gsl_vector_view_array_with_stride(act_base, 1, n);
+			gsl_vector_view vgroupb = gsl_vector_view_array_with_stride (&_p_store->_p_activity[ind], 1, n);
+			_corr = LF_gsl_stats_spearman (&vgroupa.vector, &vgroupb.vector, w);
+			LF_gsl_stats_spearman_free (w);
+			
+			//double* w = new double[2*n];
+			//_corr = gsl_stats_spearman(&_p_store->_activity[ind], 1, &_p_store->_p_activity[ind], 1, n, w);
+			//delete[] w;
+		}
+		else
+			_corr = gsl_stats_correlation(act_base, 1, &_p_store->_p_activity[ind], 1, n);
+		
+		if(!(_corr >= -1. &&  _corr <= 1.))
+			_corr = _last_corr;
+		_p_store->_corr.back() = _corr;
+
+
+		LFDataPoint dp;
+		_p_store->fill_last_point(dp);
+		LF::model_send(dp, comment_, _t, _model._out_file_datapoints, _datapoint_key);
+		
+		// correlation box
+
+		double pact_sign = LF::sign(p - last_p);
+		const LFSide* pact_side = LFSide::s_by_sign(pact_sign);
+		bool new_box = false;
+		bool new_triggered = false;
+		bool new_synthetic = false;
+		if(!_box.valid())
+		{
+			_box.reset(pact_side, last_t, _corr, last_p);
+			_corr_dyn_low = _corr - _model._crl_low_offset;
+			_corr_dyn_high = std::max(_corr + _model._crl_high_offset, _model._crl_high);
+		}
+		else if(_corr < _corr_dyn_low && _box._max_corr > _corr_dyn_high)
+		{
+			new_box = true;
+			_corr_dyn_high = std::max(_corr + _model._crl_high_offset, _model._crl_high);
+			_box._comment = "CORR";
+			if(_cur_peak.valid() && !_cur_peak._confirmed && LF::same_side(_cur_peak._side, _box._side))
+			{
+				LFPeak s = _cur_peak;
+				s._confirm_t = s._s_t;
+				s._comment = "corr";
+				add_level(s);
+			}
+		}
+		else if(_corr > _corr_dyn_high && _box._min_corr < _corr_dyn_low)
+		{
+			double dp_charge = (TCComparePrice().diff(p, last_p)/_model._tick_size);
+			if(!_box.triggered())
+			{
+				if( ::fabs(_box._max_p_charge) > _model._crl_split_min
+					&& dp_charge*_box._side->sign() <= 0.
+					&& (_box._p_charge + dp_charge - _box._max_p_charge)*_box._side->sign() < -_model._crl_split_offset)
+				{
+					new_box = true;
+					new_triggered = true;
+					pact_side = _box._side->contra_s();
+					_corr_dyn_low = _corr - _model._crl_low_offset;
+					_box._comment = "OFF_SPLIT";
+				}
+				else if(_box._min_corr < _model._crl_split_negative)
+				{
+					new_box = true;
+					new_triggered = true;
+					_corr_dyn_low = _corr - _model._crl_low_offset;
+					_box._comment = "CORR_SPLIT";
+				}
+				else
+				{
+					_box._triggered_t = t;
+				}
+			}
+			else
+			{
+				// triggered
+
+				double sign_p_charge = _box._p_charge + dp_charge;
+				if(_model._crl_split_side_charge
+					&& sign_p_charge != 0
+					&& _latter_box.valid()
+					&& _box._side == _latter_box._side
+					&& _box._side != LFSide::s_by_sign(LF::sign(sign_p_charge))
+					&& ::fabs(_box._max_p_charge) > _model._crl_split_side_min)
+				{
+					new_box = true;
+					new_triggered = true;
+					pact_side = _box._side->contra_s();
+					_corr_dyn_low = _corr - _model._crl_low_offset;
+					_box._comment = "SIDE_SPLIT";
+				}
+
+			}
+		}
+		LFBox s_box;
+		LFCluster s_etalon;
+		std::string comment;
+		fill_sharp_box(s_box, s_etalon, comment,
+			_model._crl_box_sharp_slope, _model._crl_box_sharp_min_v,
+			_model._crl_box_sharp_slope_decline, _model._crl_box_sharp_len);
+		
+		if (!s_box.valid() && _sharp_box.valid() && !_sharp_box.ended())
+		{
+			s_box.reset(_sharp_box._side, _sharp_box._s_t, 0, _sharp_box._s_p);
+			init_merge(s_box, _sharp_box._side->sign());
+			s_box.merge(_box, _sharp_box._side->sign());
+		}
+		update_w(s_box);
+		_p_store->set_volume(s_etalon);
+		s_box._tip = s_etalon;
+
+		if (s_box.valid())
+		{
+			LFBounce s_bounce;
+			set_bounce(s_bounce, s_box._w, t, p);
+			if (s_bounce.good(_model._crl_box_bounce_p_pct, _model._crl_box_bounce_l_pct, _model._crl_box_bounce_min_l))
+			{
+				s_box.set_ended();
+				if (!new_box && _box._s_t < s_box._max_t)
+				{
+					new_box = true;
+					new_triggered = _box.triggered();
+					new_synthetic = true;
+					_corr_dyn_low = _corr - _model._crl_low_offset;
+					_corr_dyn_high = std::max(_corr + _model._crl_high_offset, _model._crl_high);
+					_box._comment = "SHARP";
+				}
+			}
+		}
+
+		if (_model._crl_split_charge
+			&&	!new_box
+			&& _box.valid() && _latter_box.valid()
+			&& _box.triggered()
+			&& _box._side != _latter_box._side
+			&& _latter_box._side == _former_box._side
+			&& _box.length() > _latter_box.length() + _former_box.length()
+			&& _box._side->sign()*LF::sign(_box._p_charge + (TCComparePrice().diff(p, last_p) / _model._tick_size)) < 0)
+		{
+			new_box = true;
+			new_triggered = _box.triggered();
+			new_synthetic = true;
+			_corr_dyn_low = _corr - _model._crl_low_offset;
+			_corr_dyn_high = std::max(_corr + _model._crl_high_offset, _model._crl_high);
+			_box._comment = "LEN_SPLIT";
+		}
+
+		if(new_box)
+		{
+			reset_bias(_model._crl_g0_end_on_sharp && s_box.valid() && s_box.ended(), true);
+			if (_model._crl_box_sharp_scope_based)
+			{
+				LFCluster s_etalon;
+				std::string comment;
+				fill_sharp_roll(_sharp_box, s_etalon, comment,
+					_model._crl_box_sharp_slope, _model._crl_box_sharp_min_v,
+					_model._crl_box_sharp_slope_decline, _model._crl_box_sharp_len);
+				if (_sharp_box.valid())
+				{
+					LF::model_send(_sharp_box, comment, _t, _model._out_file_boxes, _box_key + "_sharp");
+					LF::model_send(_sharp_box._w, comment, _t, _model._out_file_boxes, _box_key + "_sharp_w");
+				}
+			}
+			else
+			{
+				_sharp_box = s_box;
+				if (_sharp_box.valid())
+				{
+					set_scope(_sharp_box);
+					LF::model_send(_sharp_box, comment, _t, _model._out_file_boxes, _box_key + "_sharp");
+					LF::model_send(_sharp_box._w, comment, _t, _model._out_file_boxes, _box_key + "_sharp_w");
+					LF::model_send(_sharp_box._tip, comment, _t, _model._out_file_boxes, _box_key + "_sharp_tip");
+				}
+			}
+
+			_box.reset(pact_side, last_t, _corr, last_p);
+
+			if(new_triggered)
+				_box._triggered_t = last_t;
+			_box._synthetic = new_synthetic;
+		} 
+		if(_box.valid())
+		{
+			const LFSide* old_p_side = _box._side;
+			if(_corr > _box._max_corr)
+			{
+				if(_box._min_corr >= _corr_dyn_low)
+					_box._min_corr = _corr;
+				if(_corr > _corr_dyn_high)
+					_corr_dyn_low = _corr - _model._crl_low_offset;
+				_box._max_corr = _corr;
+			}
+			else if(_corr < _box._min_corr)
+			{
+				if(_box._max_corr <= _corr_dyn_high)
+					_box._max_corr =_corr;
+				if(_corr < _corr_dyn_low)
+				{
+					_corr_dyn_high = std::max(_corr + _model._crl_high_offset, _model._crl_high);
+				}
+				_box._min_corr = _corr;
+			}
+
+			double sign_p_charge = _box._p_charge + (TCComparePrice().diff(p, last_p) / _model._tick_size);
+			if(sign_p_charge != 0)
+			{
+				double pbsign = LF::sign(sign_p_charge);
+				_box.reset_side(LFSide::s_by_sign(pbsign));
+			}
+			_box.update_current(t, p, _model._tick_size);
+			reset_bias(false, false);
+			if(_box._side != old_p_side)
+				LF::model_send(_box, "p_side", _t, _model._out_file_boxes, _box_key);
+
+		}
+	}
+
+}
+
+//======================================================================
+const LFSlope* LFMomentumData::find_contra(const LFPoint& s_, const ACE_Time_Value& till_, bool eng_comp_, bool strictly_till_, const ACE_Time_Value& from_)
+{
+	LFSlopeList& lvl = _p_store->_levels;
+	ACE_Time_Value from  = from_;
+	if(from == ACE_Time_Value::zero)
+		from = s_._s_t;
+	LFSlope* ret = 0;
+	for(LFSlopeList::iterator i = lvl.begin(); i != lvl.end(); ++i)
+	{
+		LFSlope& si = *i;
+		if(!si.older(from))
+			continue;
+		if(si.older(till_) && (strictly_till_ || ret != 0))
+			return ret;
+		if(si.psign()*s_.psign() < 0)
+		{
+			if(ret == 0)
+				ret = &si;
+			else
+			{
+				double v = eng_comp_ ? ret->eng_value(si._s_eng) : ret->value(si._s_p, _model._tick_size);
+				if(v < 0)
+					ret = &si;
+			}
+		}
+	}
+	return ret;
+}
+//======================================================================
+const LFSlope* LFMomentumData::find_allied(const LFPoint& s_, const ACE_Time_Value& till_, bool eng_comp_, bool strictly_till_, const ACE_Time_Value& from_)
+{
+	LFSlopeList& lvl = _p_store->_levels;
+
+	ACE_Time_Value from  = from_;
+	if(from == ACE_Time_Value::zero)
+		from = s_._s_t;
+	LFSlope* ret = 0;
+	for(LFSlopeList::iterator i = lvl.begin(); i != lvl.end(); ++i)
+	{
+		LFSlope& si = *i;
+		if(!si.older(from))
+			continue;
+		if(si.older(till_) && (strictly_till_ || ret != 0))
+			return ret;
+		if(si.psign()*s_.psign() > 0)
+		{
+			if(ret == 0)
+				ret = &si;
+			else
+			{
+				double v = eng_comp_ ? ret->eng_value(si._s_eng) : ret->value(si._s_p, _model._tick_size);
+				if(v < 0)
+					ret = &si;
+			}
+		}
+	}
+	return ret;
+}
+//======================================================================
+bool LFMomentumData::add_level(const LFSlope& s_)
+{
+	if(s_._confirm_t == ACE_Time_Value::zero)
+	{
+		LF::model_send(s_, "zero_confirm_t", _t, _model._out_file_levels, _model._errors_key);
+		return false;
+	}
+
+	LFSlopeList& lvl = _p_store->_levels;
+	if(lvl.size() == 0)
+	{
+		lvl.push_front(s_);
+		LF::model_send(s_, "", _t, _model._out_file_levels, _levels_key);
+		return true;
+	}
+	if(s_._confirm_t < lvl.front()._confirm_t)
+	{
+		LF::model_send(s_, "older_confirm_t", _t, _model._out_file_levels, _model._errors_key);
+		return false;
+	}
+	lvl.push_front(s_);
+	LF::model_send(lvl.front(), "", _t, _model._out_file_levels, _levels_key);
+	clear_old_levels(s_);
+	return true;
+
+}
+//======================================================================
+void LFMomentumData::clear_old_levels(const LFSlope& s_)
+{
+	LFSlopeList& lvl = _p_store->_levels;
+	while(lvl.size() > 0 && LF::length_from_t(s_._s_t - lvl.back()._s_t) > _model._back_l_max)
+		lvl.pop_back();
+}
+//======================================================================

@@ -1,0 +1,25 @@
+﻿Build started 10/23/2015 4:34:33 PM.
+     1>Project "C:\src\dev\tafco\LEAF\leaf\leaf.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /IC:\src\dev\tafco\LEAF\..\LEAF /IC:\src\dev\tafco\LEAF\..\ZNET /IC:\VLIB_ROOT\Win32\ACE_wrappers /IC:\VLIB_ROOT\Win32\ACE_wrappers\TAO /IC:\VLIB_ROOT\Win32\ACE_wrappers\TAO/orbsvcs /I"C:\VLIB_ROOT\Win32\gsl-1.16\include" /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _WINDOWS /D _USRDLL /D LEAF_BUILD_DLL /D _WINDLL /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Win32/Debug\\" /Fd"Win32/Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt LFBox.cpp LFCluster.cpp LFCommonData.cpp LFData.cpp LFMarketData.cpp LFMarketModel.cpp LFMarketState.cpp LFMatch.cpp LFMatchMaker.cpp LFModel.cpp LFMomentumData.cpp LFMove.cpp LFPoint.cpp LFPosition.cpp LFSide.cpp LFSignal.cpp LFSignal_HighLow.cpp LFSlope.cpp LFStrategy.cpp LFTeaser.cpp LFWave.cpp spearman.cpp
+         spearman.cpp
+         LFWave.cpp
+     1>c:\src\dev\tafco\znet\znet\tccommadapter.h(11): fatal error C1083: Cannot open include file: 'znet/TCCommC.h': No such file or directory
+         LFTeaser.cpp
+     1>c:\src\dev\tafco\znet\znet\tccommadapter.h(11): fatal error C1083: Cannot open include file: 'znet/TCCommC.h': No such file or directory
+         LFStrategy.cpp
+     1>c:\src\dev\tafco\znet\znet\tccommadapter.h(11): fatal error C1083: Cannot open include file: 'znet/TCCommC.h': No such file or directory
+         LFSlope.cpp
+     1>c:\src\dev\tafco\znet\znet\tccommadapter.h(11): fatal error C1083: Cannot open include file: 'znet/TCCommC.h': No such file or directory
+         LFSignal_HighLow.cpp
+     1>c:\src\dev\tafco\znet\znet\tccommadapter.h(11): fatal error C1083: Cannot open include file: 'znet/TCCommC.h': No such file or directory
+         LFSignal.cpp
+     1>c:\src\dev\tafco\znet\znet\tccommadapter.h(11): fatal error C1083: Cannot open include file: 'znet/TCCommC.h': No such file or directory
+         LFSide.cpp
+     1>c:\src\dev\tafco\znet\znet\tccommadapter.h(11): fatal error C1083: Cannot open include file: 'znet/TCCommC.h': No such file or directory
+         LFPosition.cpp
+     1>Done Building Project "C:\src\dev\tafco\LEAF\leaf\leaf.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:05.99

@@ -1,0 +1,216 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_QFORMULAS_DIALOG DIALOGEX 0, 0, 354, 118
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Select QFormula"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,241,97,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,295,97,50,14
+    COMBOBOX        IDC_CMB_DEFINITION,17,29,107,87,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "QFormula Definitions:",IDC_STATIC,17,19,70,8
+    PUSHBUTTON      "Request Definitions",IDC_BTNREQUEST_DEFINITION,17,45,106,14
+    GROUPBOX        "QFormula Properties",IDC_GBQFORMULA,7,7,338,87
+    CTEXT           "QFormula Number",IDC_STQFORM_NUM,174,18,157,11,SS_NOPREFIX | WS_BORDER
+    EDITTEXT        IDC_EDQFORM_EXP,174,34,158,53,ES_MULTILINE | ES_READONLY | WS_VSCROLL | WS_HSCROLL | NOT WS_TABSTOP
+    LTEXT           "Number:",IDC_STATIC,134,19,31,10
+    LTEXT           "Expression:",IDC_STATIC,134,52,38,10
+    CONTROL         "Name",IDC_RD_QFORM_BY_NAME,"Button",BS_AUTORADIOBUTTON | WS_GROUP,23,74,34,10
+    CONTROL         "Number",IDC_RD_QFORM_BY_NUMBER,"Button",BS_AUTORADIOBUTTON,73,74,41,10
+    GROUPBOX        "QFormula by",IDC_STATIC,17,64,106,24
+END
+
+IDD_INSTRUMENTPROPERTIES_DIALOG DIALOGEX 0, 0, 449, 284
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_CLIENTEDGE | WS_EX_APPWINDOW
+CAPTION "InstrumentProperties"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    CTEXT           "Data connection status",IDC_ST_DATA_CONNECTION,115,22,154,10
+    LTEXT           "Symbol:",IDC_STATIC,7,11,26,8
+    EDITTEXT        IDC_EDSYMBOL_NAME,7,22,100,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "Subscribe",IDC_BTNSUBSCRIBE,7,41,100,14
+    LTEXT           "Subscribed Instruments:",IDC_STATIC,7,63,84,8
+    LISTBOX         IDC_LSTINSTRUMENTS,7,73,99,196,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Remove",IDC_BTNREMOVE,7,262,43,14,NOT WS_VISIBLE | WS_DISABLED
+    CTEXT           "Instrument Description",IDC_STINSTR_DESC,288,20,154,11,SS_NOPREFIX | WS_BORDER
+    CONTROL         "",IDC_LSVPROPERTIES,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,123,48,311,152
+    GROUPBOX        "Instrument Properties",IDC_STATIC,115,35,327,171
+    GROUPBOX        "Sessions",IDC_STATIC,115,209,328,66
+    CONTROL         "",IDC_LSVSESSIONS,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,123,218,313,52
+    PUSHBUTTON      "Remove All",IDC_BTNREMOVEALL,64,262,43,14,NOT WS_VISIBLE | WS_DISABLED
+    PUSHBUTTON      "QFormula",IDC_BTN_QFORMULA,57,41,50,14,NOT WS_VISIBLE | WS_DISABLED
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_QFORMULAS_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 345
+        VERTGUIDE, 17
+        VERTGUIDE, 134
+        VERTGUIDE, 174
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 111
+        HORZGUIDE, 19
+        HORZGUIDE, 87
+    END
+
+    IDD_INSTRUMENTPROPERTIES_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 442
+        VERTGUIDE, 107
+        VERTGUIDE, 115
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 276
+        HORZGUIDE, 11
+        HORZGUIDE, 48
+        HORZGUIDE, 59
+        HORZGUIDE, 80
+        HORZGUIDE, 94
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#include ""res\\InstrumentProperties.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\InstrumentProperties.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 4,0,0,1
+ PRODUCTVERSION 4,0,0,1
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "CQG, Inc."
+            VALUE "FileDescription", "Instrument Properties Sample"
+            VALUE "FileVersion", "4.0.0.1"
+            VALUE "InternalName", "InstrumentProperties.exe"
+            VALUE "LegalCopyright", "(c) 2007 by CQG,Inc.  All rights reserved."
+            VALUE "OriginalFilename", "InstrumentProperties.exe"
+            VALUE "ProductName", "Instrument Properties Sample"
+            VALUE "ProductVersion", "4.0.0.1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#include "res\InstrumentProperties.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

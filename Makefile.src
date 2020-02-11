@@ -1,0 +1,4 @@
+TCO_INCL += -I$(LEAF_ROOT)
+TCO_LIB_INCL += -L$(LEAF_ROOT)/leaf
+SH_LIBS += -lznet
+include $(ZNET_ROOT)/Makefile.src

@@ -1,0 +1,30 @@
+USER_CCFLAGS=
+
+#LIB_NAME=
+
+# This is the list of smart proxy idl files.
+#SP_IDL_FILES=
+
+# This is the list of all idl files.
+#LIB_IDL_SRCS=
+
+# This is the list of cpp files for the library.
+#LIB_CC_SRCS=
+
+BIN1= back_test
+BIN1_CC_SRCS = spearman_test.cpp
+BIN1_LIBS= -lleaf
+
+#BIN2 = 
+#BIN2_CC_SRCS = 
+#BIN2_LIBS =
+
+#BIN3 = 
+#BIN3_CC_SRCS = 
+#BIN3_LIBS =
+
+#BIN4 = 
+#BIN4_CC_SRCS = 
+#BIN4_LIBS =
+
+include $(LEAF_ROOT)/Makefile.src

@@ -1,0 +1,80 @@
+/*
+*
+*	© Copyright 2012 by TAF Co. All rights reserved.
+*
+*/
+#ifndef DXE_READER_H_
+#define DXE_READER_H_
+
+#include "znet/ZNet.h"
+#include "znet/TCActiveQueue.h"
+#include "znet/BMModel.h"
+#include "znet/BMReader.h"
+#include "leaf/LFMarketData.h"
+
+
+//======================================================================
+class DXEReader: public BMReaderBase
+{
+public:
+	enum Ticker
+	{
+		t_BRN = 1, t_DXE = 2, 
+		t_UNKNOWN = 0
+	};
+	DXEReader(const std::string& file_, bool _trades_only = false);
+	~DXEReader();
+	void run();
+
+private:
+	virtual void process_hdr(ACE_Message_Block* mb_);
+	virtual void process_eof(bool full_); 
+	virtual void process_rec(ACE_Message_Block* mb_); 
+
+	void process(ACE_Message_Block* mb_);
+	ACE_Time_Value get_ace_time(const std::string& timestamp_);
+	bool make_key(const std::string&, std::string& key_, const ACE_Time_Value& tv_);
+
+	struct Trade
+	{
+		Trade(double p_, double q_, const ACE_Time_Value& t_)
+			:_pqp(p_, q_), _tv_t(t_){}
+		Trade()
+			:_tv_t(ACE_Time_Value::zero){}
+	
+		TC_pqp			_pqp;
+		ACE_Time_Value	_tv_t;
+	};
+	struct Counter
+	{
+		Counter()
+			:_millsec(1), _tv_b(ACE_Time_Value::zero), _tv_e(ACE_Time_Value::zero){}
+		void clear() { _trade_group.clear(); _tv_b = _tv_e = ACE_Time_Value::zero; }
+		std::vector<Trade>	_trade_group;
+		long				_millsec;
+		ACE_Time_Value		_tv_b; // first bid/offer
+		ACE_Time_Value		_tv_e; // last bid/offer
+	};
+						// current group	last delivered group
+	typedef std::pair<LFDepthDataReader, LFDepthDataReader> DepthPair;
+	typedef std::map<long, DepthPair>			DepthMap;
+	typedef std::map<long, Counter>				CounterMap;
+	typedef std::map<double, double>			PQPMap;
+	typedef std::map<std::string, PQPMap>		VWAPMap;
+	
+	Z::ActiveQueue		_worker;
+	std::string			_base_symbol;
+	Ticker				_ticker;
+	LFTradeData			_lftrade;
+	DepthMap			_d_map;
+	VWAPMap				_vm;
+	bool				_trades_only;
+	bool				_repeat_bbo;
+	bool				_vwap_over;
+	TCBusinessTimeRange _trace_r;
+	CounterMap			_c_map;
+};
+//======================================================================
+#endif 
+
+

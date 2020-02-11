@@ -1,0 +1,1 @@
+START "BACKTEST DXE : CLE" md_monitord.exe -config %ZCONFIGDIR%\md_monitor_bt_dxe_cle.cfg

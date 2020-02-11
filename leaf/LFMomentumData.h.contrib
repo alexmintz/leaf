@@ -1,0 +1,528 @@
+/*
+*
+*	© Copyright 2012 by TAF Co. All rights reserved.
+*
+*/
+
+#ifndef LF_MOMENTUM_DATA_H
+#define LF_MOMENTUM_DATA_H
+
+#include "znet/ZNet.h"
+#include "znet/TCTradingTime.h"
+#include "leaf/LFMove.h"
+#include "leaf/LFMatch.h"
+#include "leaf/LFTeaser.h"
+#include "leaf/LFCluster.h"
+#include "leaf/LFModel.h"
+
+//======================================================================
+struct LEAF_Export LFDataPoint : public Z::Point
+{
+	LFDataPoint(const std::string& key_ = "");
+	virtual ~LFDataPoint();
+
+	virtual std::string get_key() const { return _key; }
+	virtual void set_key(const std::string& k_) {_key = k_;}
+
+	virtual void reset(const ACE_Time_Value& t_ = ACE_Time_Value::zero, double l_ = 0, double w_ = 0,
+		double p_ = 0, double eng_ = 0, double activity_ = 0, double p_activity_ = 0, double v_activity_ = 0, double corr_ = 0,
+		double u_vol_ = 0, double u_tran_ = 0, double d_vol_ = 0, double d_tran_ = 0);
+
+	bool valid() const { return _s_t != ACE_Time_Value::zero; }
+
+	LEAF_Export friend bool operator<<(ACE_OutputCDR& strm, const LFDataPoint& d_);
+	LEAF_Export friend bool operator>>(ACE_InputCDR& strm, LFDataPoint& d_);
+	///Writes data in csv format
+	LEAF_Export friend std::ostream& operator<<(std::ostream& os, const LFDataPoint& d_);
+	void body_to_stream(std::ostream& os) const;
+
+	std::string _key;
+	ACE_Time_Value _s_t;
+	std::string _s_t_str;
+	double	_l;
+	double	_w;
+	double	_p;
+	double	_eng;
+	double	_activity;
+	double	_p_activity;
+	double	_v_activity;
+	double	_corr;
+	double	_u_vol;
+	double	_u_tran;
+	double	_d_vol;
+	double	_d_tran;
+
+	std::string	_comment;
+	static const char* header();
+
+};
+typedef Z::smart_ptr<LFDataPoint> LFDataPointPtr;
+Z_EVENT_DECLARE_MODEL(LEAF, LFDataPoint)
+
+
+//======================================================================
+typedef std::vector<LFClusterVec> LFScopeStore;
+
+//======================================================================
+struct LEAF_Export LFStore_Volume
+{
+	LFStore_Volume(const LFScopeStore& s_store_, const LFSide* side_)
+		: _s_store(s_store_), _side(side_), _vol(0), _tran(0)
+	{}
+
+	void sided_volume(const LFPoint& from_, const LFPoint& to_, size_t below_scale_);
+
+	void sided_volume_i(LFPoint from_, LFPoint to_, size_t scale_);
+
+	const LFScopeStore& _s_store;
+	const LFSide* _side;
+	double _vol;
+	double _tran;
+
+	LFPoint _f_b;
+	LFPoint _f_e;
+};
+
+//======================================================================
+struct LEAF_Export LFTradePoint
+{
+	LFTradePoint(const ACE_Time_Value& t_ = ACE_Time_Value::zero, const LFSide* side_ = 0, const TC_pqp& trade_ = TC_pqp()) 
+		:_t(t_), _side(side_), _trade(trade_)
+	{}
+
+	void reset(const ACE_Time_Value& t_ = ACE_Time_Value::zero, const LFSide* side_ = 0, const TC_pqp& trade_ = TC_pqp())
+	{
+		_t = t_;
+		_side = side_;
+		_trade = trade_;
+	}
+
+	bool valid() const { return _t != ACE_Time_Value::zero;	}
+
+	ACE_Time_Value	_t;
+	const LFSide*	_side;
+	TC_pqp			_trade;
+};
+typedef std::list<LFTradePoint> LFTradePointList;
+
+//======================================================================
+struct LEAF_Export LFPointStore
+{
+	LFPointStore(LFMarketModel* model_);
+	virtual ~LFPointStore();
+
+	void reset();
+	bool add_point(const ACE_Time_Value& t_, double eng_, double p_);
+	bool add_virt_point(const ACE_Time_Value& t_, double eng_, double p_);
+	bool would_add_virt_point(const ACE_Time_Value& t_) const;
+
+	size_t get_n(double l_, double weight_factor_ = -1, double weight_prec_ = 0, size_t min_n_ = 3);
+
+	void fill_last_point(LFDataPoint& dp_) const;
+	void fill_point(LFDataPoint& dp_, size_t ind_) const;
+	void find_point(LFDataPoint& dp_, double p_limit_, const LFSide* p_side_, double max_l_) const;
+
+	void find_tip(LFCluster& tip_, const LFCluster& c_, double min_v_) const;
+	void set_volume(LFCluster& c_, size_t below_scale_ = 0) const;
+
+	void add_trade(const LFTradePoint& tp_);
+
+	size_t find(const ACE_Time_Value& t_) const;
+
+	const LFBox* find_box(const LFSide* side_) const;
+
+	// reporting
+	LFMatchPtr make_report(const std::string& name_, const std::string& key_base_, const LFSide* side_) const;
+	LFMatchPtr make_report(const std::string& name_, const std::string& key_base_, const LFBox& box_) const;
+
+	void report(const LFMatchPtr& match_);
+	void report(const std::string& name_, const std::string& key_base_, const LFBox& box_, bool out_file_);
+
+	LFMarketModel*		_model;
+	ACE_Time_Value		_s_t;
+
+	ACE_Time_Value		_s_index_t;
+	std::vector<size_t> _index;
+	BMTT_msec_s		_index_dt;
+
+	std::vector<ACE_Time_Value>	_tt;
+	std::vector<double>	_t;
+	std::vector<double>	_w;
+	std::vector<double>	_eng;
+	std::vector<double>	_p;
+
+	std::vector<double>	_activity;
+	std::vector<double>	_p_activity;
+	std::vector<double>	_v_activity;
+	std::vector<double>	_corr;
+	std::vector<double>	_u_vol;
+	std::vector<double>	_u_tran;
+	std::vector<double>	_d_vol;
+	std::vector<double>	_d_tran;
+
+	LFSlopeList _levels;
+	LFBoxList	_boxes;
+
+	LFTradePointList _trade_list;
+	
+	LFScopeStore _s_store;
+
+
+	LFMatchPtrList	_to_report;
+
+};
+typedef Z::smart_ptr<LFPointStore> LFPointStorePtr;
+
+typedef std::pair<long, long> LFJoinIndex; // first - j_ind, second - offset
+
+//======================================================================
+struct LEAF_Export LFBoxTrend : public LFBoxVec
+{
+	enum {TREND_SIZE = 5};
+	typedef LFBoxVec Papa;
+	LFBoxTrend();
+
+	void init(LFPointStore* p_store_, const std::string& prefix_, size_t scale_);
+
+	bool operator==(const LFBoxTrend& s_) const 
+	{ 
+		const Papa& self = *this;
+		for(size_t i = 0; i < size(); ++i)
+		{
+			if(!self[i].t_equal(s_[i]))
+				return false;
+		}
+		return true;
+	}
+	bool operator!=(const LFBoxTrend& s_) const { return !operator==(s_); }
+
+	const LFBox& operator[](size_t i) const;// { return Papa::operator[](i); }
+	LFBox& operator[](size_t i);// { return Papa::operator[](i); }
+	size_t size() const;
+
+	void reset();
+	bool valid() const { return back().valid(); }
+	bool trend_valid() const { return (*this)[TREND_SIZE-1].valid(); }
+
+	virtual std::string get_key() const { return _key; }
+	virtual void set_key(const std::string& k_) {_key = k_;}
+
+
+	void calc_bias(size_t ind_);
+	double calc_exp_contra_p(size_t ind_, double exp_contra_pias_);
+
+	void push_box(const LFBox& b_);
+	void merge_box(const LFBox& b_);
+	void replace_box(const LFBox& b_);
+	void update_avg();
+	void update_w(size_t ind_);
+
+	LFJoinIndex join(size_t ind_);
+	LFJoinIndex check_join(std::string& reason_);
+	LFJoinIndex check_join(size_t ind_, std::string& reason_);
+	LFJoinIndex check_join(const LFBoxTrend& child_, std::string& reason_);
+	LFJoinIndex check_join(const LFBoxTrend& child_, size_t ind_, std::string& reason_);
+
+	bool joinable(size_t ind_, std::string& reason_);
+	bool set_ended(size_t ind_);
+
+	bool check_not_ended(size_t ind_, const LFBoxTrend& child_, std::string& reason_);
+
+	bool check_init(const LFBoxTrend& child_);
+
+	bool same_wave(const LFCluster& c_) const;
+
+	bool check_set_ended(const LFBox& b_, const LFBoxTrend& charge_trend_, bool force_ended_);
+	bool check_set_ended(const LFBoxTrend& child_);
+
+	void check_set_pattern();
+
+	void set_min(double l_ = 0, double v_ = 0) { _min_l = l_; _min_v = v_; }
+
+	void set_default_params();
+
+	void reset_action();
+	void set_action();
+
+	// trend
+	size_t find_ind(const LFSide* side_, const ACE_Time_Value& t_) const;
+	size_t find_ind_best(const LFSide* side_, const ACE_Time_Value& t_) const;
+	size_t find_ind_before(const LFSide* side_, const ACE_Time_Value& t_) const;
+
+	void find_indices(const LFCluster& c_, size_t& pin_, size_t& bin_) const;
+
+	size_t ended_ind() const
+	{
+		if (!(*this)[0].ended())
+			return 1;
+		return 0;
+	}
+
+	size_t peak_ind(const LFSide* trend_side_) const 
+	{ 
+		if((*this)[0]._side == trend_side_)
+			return 0;
+		return 1;
+	}
+	size_t peak_ended_ind(const LFSide* trend_side_) const
+	{
+		size_t ind = peak_ind(trend_side_);
+		if (ind == 0 && !(*this)[ind].ended())
+			return 2;
+		return ind;
+	}
+	size_t bounce_ind(const LFSide* trend_side_) const
+	{ 
+		if((*this)[0]._side != trend_side_)
+			return 0;
+		return 1;
+	}
+	size_t bounce_ended_ind(const LFSide* trend_side_) const
+	{
+		size_t ind = bounce_ind(trend_side_);
+		if (ind == 0 && !(*this)[ind].ended())
+			return 2;
+		return ind;
+	}
+
+	void model_send_trend(const std::string& comment_, const ACE_Time_Value& t_, bool out_file_) const;
+	void model_send(const std::string& comment_, const ACE_Time_Value& t_, bool out_file_, const std::string& key_suffix_) const;
+	void model_send(size_t ind_, const std::string& comment_, const ACE_Time_Value& t_, bool out_file_, const std::string& key_suffix_) const;
+	void clear_just_flags();
+
+
+	LFPointStore*	_p_store;
+	std::string		_prefix;
+	std::string		_key;
+	size_t			_scale;
+
+	double	_avg_l;
+	double	_avg_v;
+	double	_avg_s;
+	long	_avg_cnt;
+
+	double	_min_l;
+	double	_min_v;
+
+	std::string _action;
+
+	//------------ trend 
+	const LFSide*	_trend_side;
+	const LFSide*	_force_side;
+	bool			_in_trend;
+	double			_hard_p;
+	double			_soft_p;
+	double			_hard_p_limit;
+	LFPointPair		_limits;
+
+	//trading
+	double	_exit_hard_end_pct;
+	double	_exit_soft_end_pct;
+	// just flags
+	size_t _just_crossed_pin;
+	size_t _just_confirmed_pin;
+	const LFSide* _just_ended_side;
+
+	//settings
+	double	_crl_bias_min_l;
+	double	_crl_bias_min_v;
+	
+
+};
+
+//======================================================================
+struct LEAF_Export LFBoxTrends : public std::vector<LFBoxTrend>
+{
+	enum {NUMBER_OF_TRENDS = 6};
+	typedef std::vector<LFBoxTrend> Papa;
+	LFBoxTrends();
+
+	void init(LFPointStore* p_store_);
+
+	bool operator==(const LFBoxTrends& s) const;
+	const LFBoxTrend& operator[](size_t i) const { return Papa::operator[](i); }
+	LFBoxTrend& operator[](size_t i) { return Papa::operator[](i); }
+	size_t size() const;
+
+	size_t find_scope(const LFCluster& c_, size_t& pin_, size_t& bin_) const;
+	size_t find_bounce_scope(const LFCluster& c_, bool exact_pin_) const;
+
+	void reset();
+
+	void clear_just_flags();
+
+	void model_send(size_t scale_, const std::string& comment_, const ACE_Time_Value& t_, bool out_file_, const std::string& key_suffix_) const;
+
+};
+//======================================================================
+struct LEAF_Export LFEngPoint : public LFPoint
+{
+	LFEngPoint(): _m(0), _eng(0)
+	{}
+	virtual ~LFEngPoint(){}
+
+	LEAF_Export friend std::ostream& operator<<(std::ostream& os, const LFEngPoint& d_);
+	static const char* header();
+
+	double	_m;
+	double	_eng;
+};
+
+typedef Z::smart_ptr<LFEngPoint>	LLFEngPointPtr;
+Z_EVENT_DECLARE_MODEL(LEAF, LFEngPoint)
+
+//======================================================================
+struct LEAF_Export LFMomentumData_P
+{
+	LFMomentumData_P(LFMarketModel* model_ = 0);
+	virtual ~LFMomentumData_P();
+
+	virtual void reset();
+
+	LEAF_Export friend bool operator<<(ACE_OutputCDR& strm, const LFMomentumData_P& d_);
+	LEAF_Export friend bool operator>>(ACE_InputCDR& strm, LFMomentumData_P& d_);
+	LEAF_Export friend std::ostream& operator<<(std::ostream& os, const LFMomentumData_P& d_);
+	void from_csv_vec(int& ind_, const std::vector<const char*>& v_);
+
+	LFDepthData	_md;
+	double	_m;
+	double  _last_m;
+	double	_eng;
+	double	_p;
+	double  _t_vol;
+	double  _u_vol;
+	double  _d_vol;
+	ACE_Time_Value _t;
+	long	_move_id;
+	//------------
+	double	_activity;
+	double	_p_activity;
+	double	_v_activity;
+	double	_corr;
+	double	_last_corr;
+	double	_corr_dyn_high;
+	double	_corr_dyn_low;
+
+	//------------ box
+	LFBox	_box;
+	LFBoxTrends _box_trends;
+	LFBox	_latter_box;
+	LFBox	_former_box;
+
+	LFBoxTrend _charge_trend;
+
+	LFBox	_sharp_box;
+	//------------
+	LFMove	_cur_move;
+	LFMove	_prev_move;
+	LFMove	_starting_move;
+
+	LFPeak	_cur_peak;
+	LFPeak	_form_peak;
+
+	//------------ trend 
+	const LFSide*	_trend_side;
+	bool			_in_trend;
+	double			_trend_hard_p;
+	double			_trend_soft_p;
+
+	//------------
+
+	LFBox	_bias_bp;	// Sharp Charge
+	LFBox	_bias_bx;	// Sharp Box
+};
+
+//======================================================================
+struct LEAF_Export LFMomentumData : public LFMomentumData_P
+{
+	LFMomentumData(const std::string& market_, const std::string& momentum_);
+	virtual ~LFMomentumData();
+
+	virtual void reset();
+	void load_and_reset();
+
+	bool process_missed_tick(const ACE_Time_Value& t_);
+	bool process_depth(const LFDepthData& md_);
+	bool check_process_last_trade(const ACE_Time_Value& t_);
+	bool process_last_trade(const ACE_Time_Value& t_);
+	bool process_trade(const LFTradeData& td_);
+
+	bool add_data(const ACE_Time_Value& t_, double p_, const std::string& comment_);
+	void update(double m_, const ACE_Time_Value& t_, double p_, const std::string& comment_);
+	void calc_waves();
+	void calc_direct();
+	void fill_trade(LFTradePoint& tp_, const ACE_Time_Value& t_, const TC_pqp& pqp_);
+
+	double m_sign() const { return LF::sign(_m); }
+	double m_psign() const { return _model.psign(_m); }
+	double m_strength() const { return _model.abs_strength(_m); }
+
+
+	void calc_smoothness(const LFSlope& s_);
+	void set_wave(LFBox& b_, const LFPoint& from_);
+	void box_add(LFBoxTrend& v_, const LFBox& b_, long& u_ind_, LFJoinIndex& j_ind_);
+	void force_set_ended(size_t scale_, size_t pin_, const std::string& reason_);
+	void sync_scope_store(size_t scale_, long u_ind_, LFJoinIndex j_ind_);
+	void reset_bias(bool force_, bool add_);
+	void reset_local_bias(bool force_overwrite_ = false);
+
+	double calc_exp_contra_p(const LFBox& b_, double p_charge_1_, double exp_contra_pias_) const;
+
+	void calc_point(const std::string& comment_);
+
+	void fill_sharp_roll(LFBox& sb_, LFCluster& etalon_, std::string& comment_,
+		tc_range<double>& pslope_, tc_range<double>& min_v_,
+		double pslope_decline_, double max_l_);
+
+	void fill_sharp_box(LFBox& sb_, LFCluster& etalon_, std::string& comment_,
+		tc_range<double>& pslope_, tc_range<double>& min_v_, 
+		double pslope_decline_, double max_l_);
+
+	void calc_smoothness_virt(const LFSlope& s_);
+	bool add_level(const LFSlope& s_);
+	void clear_old_levels(const LFSlope& s_);
+	const LFSlope* find_contra(const LFPoint& s_, const ACE_Time_Value& till_ = ACE_Time_Value::zero, bool eng_comp_ = false, bool strictly_till_ = true, const ACE_Time_Value& from_ = ACE_Time_Value::zero);
+	const LFSlope* find_allied(const LFPoint& s_, const ACE_Time_Value& till_= ACE_Time_Value::zero, bool eng_comp_ = false, bool strictly_till_ = true, const ACE_Time_Value& from_ = ACE_Time_Value::zero);
+
+	void clear_just_flags();
+
+	void model_send(const std::string& comment_, const ACE_Time_Value& t_, bool out_file_, const std::string& key_, long in_sub_id_) const;
+
+	// return if same
+	bool check_merge(LFBox& to_, const LFBox& from_, double sign_, bool keep_bias_ = false) const;
+	void init_merge(LFBox& to_, double sign_) const;
+
+	void update_w(LFBox& b_, bool sided_volume_ = false) const;
+	void set_scope(LFBox& b_) const;
+
+	void set_bounce(LFBounce& bnc_,  const LFCluster& peak_, const ACE_Time_Value& t_, double p_);
+
+	void set_limit_t(const ACE_Time_Value& from_t_);
+
+	LFMarketModel _model;
+
+	std::string	_levels_key;
+	std::string	_box_key;
+	std::string	_datapoint_key;
+
+
+	LFWavePtr _w;
+	LFWavePtr _cur_w;
+	LFWavePtr _form_w;
+
+	LFPointStorePtr	_p_store;
+
+	auto_ptr<LFModel>	_lf_m;
+	auto_ptr<LFModel>	_lf_eng;
+	ACE_Time_Value		_tick_limit_tv;
+	const LFSide*		_last_trade_side;
+	LFTradePoint		_last_trade;
+	long				_i_count;
+
+private:	
+	LFMomentumData(const LFMomentumData&);
+	LFMomentumData& operator=(const LFMomentumData&);
+};
+
+//======================================================================
+#endif /*LF_MOMENTUM_DATA_H*/

@@ -1,0 +1,62 @@
+/*
+*
+*	© Copyright 2012 by TAF Co. All rights reserved.
+*
+*/
+#ifndef DXE_READER_H_
+#define DXE_READER_H_
+
+#include "znet/ZNet.h"
+#include "znet/TCActiveQueue.h"
+#include "znet/BMModel.h"
+#include "znet/BMReader.h"
+#include "leaf/LFMarketData.h"
+
+
+//======================================================================
+class DXEReader: public BMReaderBase
+{
+public:
+	enum Ticker
+	{
+		t_BRN = 1, t_DXE = 2, t_ETQO = 3, t_RFE = 4,
+		t_UNKNOWN = 0
+	};
+	DXEReader(const std::string& file_, 
+		bool depth_only_ = false,
+		bool trades_only_ = false);
+	~DXEReader();
+	void run();
+
+private:
+	virtual void process_hdr(ACE_Message_Block* mb_);
+	virtual void process_eof(bool full_); 
+	virtual void process_rec(ACE_Message_Block* mb_); 
+
+	void process(ACE_Message_Block* mb_);
+	ACE_Time_Value get_ace_time(const std::string& timestamp_, bool& same_day_);
+	bool make_key(const std::string&, std::string& key_, const ACE_Time_Value& tv_);
+
+	
+	typedef std::pair<LFDepthDataReader, LFDepthDataReader> DepthPair;
+	typedef std::map<long, DepthPair>			DepthMap;
+	typedef std::map<double, double>			PQPMap;
+	typedef std::map<std::string, PQPMap>		VWAPMap;
+	
+	Z::ActiveQueue		_worker;
+	std::string			_base_symbol;
+	Ticker				_ticker;
+	LFTradeData			_lftrade;
+	DepthMap			_d_map;
+	VWAPMap				_vm;
+	bool				_trades_only;
+	bool				_depth_only;
+	bool				_repeat_bbo;
+	bool				_vwap_over;
+	TCBusinessTimeRange _trace_r;
+	long				_micro_sec_depth;
+};
+//======================================================================
+#endif 
+
+

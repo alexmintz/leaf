@@ -1,0 +1,1 @@
+START "LIVE DXE : CLE" md_monitord.exe -config %ZCONFIGDIR%\md_monitor_lv_dxe_cle.cfg

@@ -1,0 +1,612 @@
+/*
+*
+*	© Copyright 2011 by TAF Co. All rights reserved.
+*
+*/
+
+#ifndef LF_MARKET_DATA_H
+#define LF_MARKET_DATA_H
+
+#include "znet/ZNet.h"
+
+#include "znet/BMModel.h"
+#include "znet/TCPQP.h"
+#include "leaf/LEAF_Export.h"
+
+//======================================================================
+struct LEAF_Export LFVWAPData : public Z::Point
+{
+	LFVWAPData(const std::string& instr_key_,
+		const ACE_Time_Value tv_,
+		double vwap_);
+	LFVWAPData();
+	virtual ~LFVWAPData();
+
+	virtual std::string get_key() const { return _instr_key; }
+	virtual void set_key(const std::string& k_) { _instr_key = k_; }
+
+	LEAF_Export friend bool operator<<(ACE_OutputCDR& strm, const LFVWAPData& d_);
+	LEAF_Export friend bool operator>>(ACE_InputCDR& strm, LFVWAPData& d_);
+	///Writes data in csv format
+	LEAF_Export friend std::ostream& operator<<(std::ostream& os, const LFVWAPData& d_);
+	///Reads data in csv format
+	void from_csv_vec(const std::vector<const char*>& v_);
+
+	std::string as_string() const;
+
+	std::string _instr_key;
+	long		_cqg_InstrumentID;
+
+	double		_vwap;
+
+	static const char* header();
+};
+typedef Z::smart_ptr<LFVWAPData> LFVWAPDataPtr;
+
+Z_EVENT_DECLARE_MODEL(LEAF, LFVWAPData)
+
+//====================================================================
+class VWAPReader : public BMReaderBase
+{
+public:
+	VWAPReader(const std::string& filer_);
+	virtual ~VWAPReader();
+	double get_vwap() const { return _vwap._vwap; }
+
+protected:
+	virtual void process_hdr(ACE_Message_Block* mb_);
+	virtual void process_eof(bool full_);
+	virtual void process_rec(ACE_Message_Block* mb_);
+
+private:
+	void process(ACE_Message_Block* mb_);
+	LFVWAPData	_vwap;
+	//double _vwap;
+};
+//======================================================================
+class LEAF_Export LFSubAccount
+{
+public:
+	LFSubAccount(long account_id_ = -1, const std::string& account_name_ = "", double pct_=  0)
+		:_account_id(account_id_), _account_name(account_name_), _pct(pct_)
+	{}
+	virtual ~LFSubAccount(){}
+	
+	LEAF_Export friend std::ostream& operator<<(std::ostream& os_, const LFSubAccount& s_);
+	virtual void dump(std::ostream& os) const;
+
+	void init(long id_, const std::string& name_, double pct_)
+	{
+		_account_id = id_; _account_name = name_; _pct = pct_;
+	}
+
+	long get_id()					const { return _account_id; }
+	const std::string& get_name()	const { return _account_name; }
+	double get_pct()				const { return _pct; }
+	
+protected:
+	long		_account_id;
+	std::string	_account_name;
+	double		_pct;
+};
+
+class LEAF_Export LFAccount : public LFSubAccount
+{
+public:
+	LFAccount(long account_id_ = -1, const std::string& account_name_ = "", double pct_ = 0)
+		:LFSubAccount(account_id_, account_name_, pct_)
+	{}
+		
+	virtual ~LFAccount(){}
+
+	LEAF_Export friend bool operator<<(ACE_OutputCDR& strm, const LFAccount& d_);
+	LEAF_Export friend bool operator>>(ACE_InputCDR& strm, LFAccount& d_);
+
+	virtual void dump(std::ostream& os) const;
+	
+	void init(long id_, const std::string& name_, double pct);
+	bool verify();
+	void restore_account();
+	
+	typedef std::map<std::string, LFSubAccount> SubAccMap;
+	SubAccMap::const_iterator it_begin() const { return _sub_accounts.begin(); }
+	SubAccMap::const_iterator it_end() const { return _sub_accounts.end(); }
+	static const size_t _max_accounts = 14;
+
+private:
+	void init_default();
+	SubAccMap	_sub_accounts; 
+};
+//=======================================================================================
+struct LEAF_Export LFDailyPosition: public Z::Point
+{
+	LFDailyPosition()
+		:_pnl(0), _version("")
+	{}
+	virtual ~LFDailyPosition(){}
+
+	virtual std::string get_key() const { return _strategy_key; }
+	virtual void set_key(const std::string& k_) { _strategy_key = k_; }
+
+	LEAF_Export friend bool operator<<(ACE_OutputCDR& strm, const LFDailyPosition& d_);
+	LEAF_Export friend bool operator>>(ACE_InputCDR& strm, LFDailyPosition& d_);
+
+	///Writes data in csv format
+	LEAF_Export friend std::ostream& operator<<(std::ostream& os, const LFDailyPosition& d_);
+	///Reads data in csv format
+	void from_csv_vec(const std::vector<const char*>& v_);
+
+	void restore_position(const TCDate& date_, const std::string& pos_file_= "");
+	static const char* header()
+	{
+		return ",S_KEY,S_T,PNL,VERSION,\
+			   ACC_ID,ACC_NAME,ACC_PCT,\
+			   SUB_1_ID,SUB_1_NAME,SUB_1_PCT,\
+			   SUB_2_ID,SUB_2_NAME,SUB_2_PCT,\
+			   SUB_3_ID,SUB_3_NAME,SUB_3_PCT,\
+			   SUB_4_ID,SUB_4_NAME,SUB_4_PCT,\
+			   SUB_5_ID,SUB_5_NAME,SUB_5_PCT,\
+			   SUB_6_ID,SUB_6_NAME,SUB_6_PCT,\
+			   SUB_7_ID,SUB_7_NAME,SUB_7_PCT,\
+			   SUB_8_ID,SUB_8_NAME,SUB_8_PCT,\
+			   SUB_9_ID,SUB_9_NAME,SUB_9_PCT,\
+			   SUB_10_ID,SUB_10_NAME,SUB_10_PCT,\
+			   SUB_11_ID,SUB_11_NAME,SUB_11_PCT,\
+			   SUB_12_ID,SUB_12_NAME,SUB_12_PCT,\
+			   SUB_13_ID,SUB_13_NAME,SUB_13_PCT,\
+			   SUB_14ID,SUB_14_NAME,SUB_14_PCT";
+	}
+
+	std::string		_strategy_key;
+	double			_pnl;
+	std::string		_version;
+	TCDate			_pos_date;
+
+	LFAccount	_account;
+};
+
+typedef Z::smart_ptr<LFDailyPosition>	LFDailyPositionPtr;
+typedef std::vector<LFDailyPosition>	LFDailyPositionVec;
+
+Z_EVENT_DECLARE_MODEL(LEAF, LFDailyPosition)
+
+//=======================================================================================
+class LEAF_Export LFSecurityMaster
+{
+public:
+	static const std::string		CLE;
+	static const std::string		DXE;
+	static const std::string		EP;
+	static const std::string		QO;
+	static const std::string		CLES;
+	static const std::string		ES;
+	static const std::string		NGE;
+	static const std::string		ETQO;
+	static const std::string		RFE;
+	static const std::string		RBE; //RBOB
+	static const std::string		HOE; //RBOB
+
+	static const std::string		CL_EXCH;
+	static const std::string		QO_EXCH;
+	static const std::string		DX_EXCH;
+	static const std::string		EP_EXCH;
+	static const std::string		ES_EXCH;
+	static const std::string		NG_EXCH;
+	static const std::string		ETQO_EXCH;
+	static const std::string		RF_EXCH;
+	static const std::string		RB_EXCH;
+	static const std::string		HO_EXCH;
+
+	static const std::string		CQG_SEC;
+	
+	static LFSecurityMaster* instance();
+	LFSecurityMaster();
+	~LFSecurityMaster(){}
+	
+	typedef std::map<std::string, long> LFSecurityMap;
+	typedef std::map<std::string, double> LFSettlmentMap;
+	
+	//-- overrides
+	typedef std::map<TCBusinessDateRange, char>		MonthOverrideMap;
+	typedef std::map<std::string, MonthOverrideMap>	SecurityOverrideMap;
+
+	long strategy_id(const std::string& instr_ = "");
+	long strategy_id(const std::string& instr_, long account_);
+	
+	long account_id(long strategy_id_) const;
+	const LFAccount& account_info(long account_id_);
+	const LFAccount& account_info(const std::string& account_id_);
+
+
+	const LFSecurityMap&			get_map() const { return _m;}
+	const std::vector<std::string>& get_ast() const { return _ast;}
+	const std::vector<std::string>& get_und() const { return _und;}
+	const std::vector<std::string>& get_exp() const { return _exp;}
+
+	bool set_cqg(std::string& c, const std::string& front_);
+
+	std::string::size_type get_exp_month(char m) const { return _expiration_months.find(m); }
+
+	/// Returns symbol in CQG notationbased on underlyer and date
+	std::string get_instr(const std::string& under_, const TCDate& date_);
+	void get_instr(std::vector<std::string>& under_v_, const TCDate& date_);
+
+	std::string get_cle(const TCDate& tv_);
+	std::string get_dxe(const TCDate& tv_);
+	std::string get_smp(const TCDate& tv_);
+	std::string get_brn(const TCDate& tv_);
+	std::string get_nge(const TCDate& tv_);
+	std::string get_etqo(const TCDate& tv_);
+	std::string get_rfe(const TCDate& tv_);
+	std::string get_rbe(const TCDate& tv_);
+	std::string get_hoe(const TCDate& tv_);
+
+	std::vector<std::string> get_cls(const TCDate& tv_);
+
+	// Returns symbol in exchange notation (used for processing data)
+	std::string get_cl(const TCDate& tv_);
+	std::string get_sp(const TCDate& tv_);
+	std::string get_br(const TCDate& tv_, const std::string& symb_="");
+	std::string get_dx(const TCDate& tv_);
+	std::string get_ng(const TCDate& tv_);
+	std::string get_eq(const TCDate& tv_);
+	std::string get_rb(const TCDate& tv_);
+	std::string get_ho(const TCDate& tv_);
+
+	double get_settlement_price(const std::string& sec_);
+
+	//The following functions return values that were set by the previous inquires
+	double get_tick_size() const { return _tick_size;}
+	double get_tick_value() const { return _tick_value;}
+	double get_price_factor() const { return _pf;}
+	
+	std::string get_precision() const { return _precision; }
+	int			get_iprecision() const;
+	std::string get_fprecision() const { return "%." + _precision + "f"; }
+
+private:
+	bool set_cqg_cle(std::string& s_, const std::string& front_);
+	bool set_cqg_cls(std::string& s_, const std::string& front_);
+	bool set_cqg_smp(std::string& s_);
+	bool set_cqg_brn(std::string& s_);
+	bool set_cqg_dxe(std::string& s_);
+	bool set_cqg_nge(std::string& s_);
+	bool set_cqg_etqo(std::string& s_);
+	bool set_cqg_rbe(std::string& s_);
+	bool set_cqg_hoe(std::string& s_);
+
+	std::string get_cle(const ACE_Time_Value& tv_);
+	std::string get_dxe(const ACE_Time_Value& tv_);
+	std::string get_nge(const ACE_Time_Value& tv_);
+	std::string get_etqo(const ACE_Time_Value& tv_);
+	std::string get_rbe(const ACE_Time_Value& tv_);
+	std::string get_hoe(const ACE_Time_Value& tv_);
+
+	std::string get_cl(const ACE_Time_Value& tv_);
+	std::string get_sp(const ACE_Time_Value& tv_);
+
+	size_t cl_future_month(const char m_) const;
+
+	unsigned char cl_future_switch(const TCDate& dt_);
+	unsigned char dx_future_switch(const TCDate& dt_);
+	unsigned char br_future_switch(const TCDate& dt_);
+	unsigned char ng_future_switch(const TCDate& dt_);
+	unsigned char eq_future_switch(const TCDate& dt_);
+	unsigned char rf_future_switch(const TCDate& dt_);
+	unsigned char rb_future_switch(const TCDate& dt_);
+	unsigned char ho_future_switch(const TCDate& dt_);
+
+	unsigned char smp_exp_day(ACE_UINT16 y_, unsigned char	m_);
+	long get_strategy_id(const std::string& instr_, long strategy_number_) const;
+
+	char future_char(const unsigned char m_, const TCDate& d_, const std::string& instr_) const;
+	char year_char(ACE_INT16 y_) const { return	(y_ - (y_ / 1000) * 1000) % 100; }
+	std::string year_str(ACE_INT16 y_) const;
+
+	long			_id;
+	LFSecurityMap	_m;
+	LFSettlmentMap	_s_map;
+
+	void set_overrides();
+	void set_accounts();
+
+	long und_id(const std::string& und_) const;
+	long make_base_id(long und_id_) const;
+	std::pair<long, long> parse_strategy_id(long strategy_id) const;
+
+	SecurityOverrideMap	_s_over_map;
+	//-- accounts
+	//	CQG account & Underlier Id
+	typedef std::pair<long, long>					CQGActUndIdPair;
+	// strategy_id	account
+	typedef std::map<long, LFAccount>				CQGSubAccountsMap;
+	typedef std::map<long, long>					CQGAccountMap;
+	// cqg acct + underlyer number <=> security_id
+	typedef std::map<CQGActUndIdPair, long>			CQGAccountIdMap;
+	// instrument string + account <=> instrument id CACHE
+	typedef std::pair<std::string, long>			GatewayCache;
+	typedef std::map<GatewayCache, long>			CQGAccountCacheMap;
+
+	CQGAccountCacheMap	_acc_cache;
+	CQGAccountMap		_aid_map; 
+	CQGAccountIdMap		_acc_map;
+	CQGSubAccountsMap	_sac_map;
+
+
+	std::vector<std::string> _ast;
+	std::vector<std::string> _und;
+	std::vector<std::string> _exp;
+	tc_vector<int>			 _spm; //spread months counting fromthe front
+	std::string					_expiration_months;
+	double						_tick_size;
+	double						_tick_value;
+	double						_pf;
+
+	std::string				_precision;
+	mutable int				_i_precision;
+};
+//======================================================================
+//======================================================================
+
+namespace LF
+{
+	enum OrderType
+	{
+		otUndefined = 0, otMarket = 1, otLimit = 2, otStop = 3, otStopLimit = 4
+	};
+	enum Side
+	{
+		s_UNKNOWN = 0, s_BUY = 1, s_SELL = 2
+	};
+
+	LEAF_Export std::string side_to_str(Side v_);
+	LEAF_Export LF::Side str_to_side(const std::string& v_s_);
+
+	enum OrderStatus
+	{
+		osNotSent = 0, osInClient = 1, osInTransit = 2, osRejectGW = 3,
+		osInOrderBook = 4, osInTransitTimeout = 5, osRejectFCM = 6, osExpired = 7,
+		osInCancel = 8, osInModify = 9, osCanceled = 10, osFilled = 11,
+		osParked = 12, osDisconnected = 13, osContingent = 14, osActiveAt = 16
+	};
+	enum FillStatus
+	{
+		fsNormal = 0, fsCanceled = 1, fsModified = 2, fsBusted = 3
+	};
+
+	LEAF_Export std::string make_strategy_key(long strategy_id_, const std::string& instr_key_);
+	LEAF_Export std::string make_sub_strategy_key(long strategy_id_, long sub_strategy_id_, const std::string& instr_key_);
+	LEAF_Export std::string make_strategy_key(const std::string& strategy_id_, const std::string& instr_key_);
+	LEAF_Export std::string make_sub_strategy_key(const std::string& strategy_id_, long sub_strategy_id_, const std::string& instr_key_);
+
+	enum PositionStatus
+	{
+		psUndefined = 0, psActive = 1, psSuspended = 2, psCutLoss = 3
+	};
+	enum PositionAction
+	{
+		paUndefined = 0,
+
+		paSharp	= 10,
+		paPreEnter = 11,
+		paEnter = 20,
+
+		paPreAverage = 30,
+		paAverage = 40,
+
+		paPreCutLoss = 50,
+		paCutLoss = 60,
+
+		paPreProfit = 70,
+		paProfit = 80,
+
+		paPreTrendEnd = 90,
+		paTrendEnd = 100
+	};
+	enum StrategyActionType
+	{
+		satUNKNOWN = 0, satSHARP = 1, satLCY = 2
+	};
+};
+
+
+//======================================================================
+template <int DEPTH_SIZE_T>
+struct LEAF_Export LFDepthData_T : public Z::Point
+{
+	enum 
+	{	
+		DEPTH_SIZE = DEPTH_SIZE_T,
+		DEPTH_FILE_SIZE = 1
+	};
+
+	LFDepthData_T() :
+		_cqg_InstrumentID(-1),
+		_tick_size(0),
+		_tick_value(0)
+	{}
+	virtual ~LFDepthData_T(){}
+
+	virtual std::string get_key() const { return _instr_key; }
+	virtual void set_key(const std::string& k_) {_instr_key = k_;}
+
+
+	LEAF_Export friend bool operator<<(ACE_OutputCDR& strm, const LFDepthData_T<DEPTH_SIZE>& d_)
+	{
+		if (!d_.to_cdr(strm))
+			return false;
+		if (!(strm << d_._instr_key))
+			return false;
+		if (!(strm << d_._cqg_InstrumentID))
+			return false;
+		if (!(strm << d_._tick_size))
+			return false;
+		if (!(strm << d_._tick_value))
+			return false;
+
+		for (size_t i = 0; i < DEPTH_SIZE; ++i)
+		{
+			if (!(strm << d_._ask[i]))
+				return false;
+		}
+		for (size_t i = 0; i < DEPTH_SIZE; ++i)
+		{
+			if (!(strm << d_._bid[i]))
+				return false;
+		}
+		return true;
+	}
+	LEAF_Export friend bool operator>>(ACE_InputCDR& strm, LFDepthData_T<DEPTH_SIZE>& d_)
+	{
+		if (!d_.from_cdr(strm))
+			return false;
+		if (!(strm >> d_._instr_key))
+			return false;
+		if (!(strm >> d_._cqg_InstrumentID))
+			return false;
+		if (!(strm >> d_._tick_size))
+			return false;
+		if (!(strm >> d_._tick_value))
+			return false;
+
+		for (size_t i = 0; i < DEPTH_SIZE; ++i)
+		{
+			if (!(strm >> d_._ask[i]))
+				return false;
+		}
+		for (size_t i = 0; i < DEPTH_SIZE; ++i)
+		{
+			if (!(strm >> d_._bid[i]))
+				return false;
+		}
+		return true;
+	}
+	///Writes data in csv format
+	LEAF_Export friend std::ostream& operator<<(std::ostream& os, const LFDepthData_T<DEPTH_SIZE>& d_)
+	{
+		d_.to_stream(os);
+
+		os << "," << d_._instr_key
+			<< "," << d_._cqg_InstrumentID
+			<< "," << d_._tick_size
+			<< "," << d_._tick_value;
+
+		// write only zero level
+		for (size_t i = 0; i < DEPTH_SIZE; ++i)
+		{
+			if (d_._ask[i].good())
+			{
+				os << "," << d_._ask[i].p_p() << "," << d_._ask[i]._q;
+				break;
+			}
+		}
+		for (size_t i = 0; i < DEPTH_SIZE; ++i)
+		{
+			if (d_._bid[i].good())
+			{
+				os << "," << d_._bid[i].p_p() << "," << d_._bid[i]._q;
+				break;
+			}
+		}
+		return os;
+	}
+	
+	///Reads data in csv format
+	void from_csv_vec(const std::vector<const char*>& v_)
+	{
+		Z::Point::from_csv_vec(v_);
+
+		int ind = Z::Point::TIME_FIELDS;
+		_instr_key = v_[ind++];
+		_cqg_InstrumentID = atol(v_[ind++]);
+		_tick_size = atof(v_[ind++]);
+		_tick_value = atof(v_[ind++]);
+
+		size_t CSV_DEPTH = (v_.size() - ind) / 4;
+
+		for (size_t i = 0; i < CSV_DEPTH; ++i)
+		{
+			if (i < DEPTH_SIZE)
+				_ask[i].reset(atof(v_[ind]), atof(v_[ind + 1]));
+			ind += 2;
+		}
+		for (size_t i = 0; i < CSV_DEPTH; ++i)
+		{
+			if (i < DEPTH_SIZE)
+				_bid[i].reset(atof(v_[ind]), atof(v_[ind + 1]));
+			ind += 2;
+		}
+	}
+
+	std::string as_string() const
+	{
+		std::ostringstream os;
+		os << TCTimestamp(_t).c_str() << " " << _instr_key
+			<< "(" << _cqg_InstrumentID << ") ";
+		os << "{ ";
+		for (size_t i = 0; i < DEPTH_SIZE; ++i)
+			os << _bid[i] << " ";
+		os << "}{ ";
+		for (size_t i = 0; i < DEPTH_SIZE; ++i)
+			os << _ask[i] << " ";
+		os << "}";
+		return os.str();
+	}
+	bool valid() const { return _tick_size != 0; }
+
+	std::string _instr_key;
+	long		_cqg_InstrumentID;
+	double		_tick_size;
+	double		_tick_value;
+
+	TC_pqp _ask[DEPTH_SIZE];
+	TC_pqp _bid[DEPTH_SIZE];
+
+	static const char* header()
+	{
+		return ",S_KEY,CQG_ID,TICK_S,TICK_V,A0P,A0Q,B0P,B0Q";
+	}
+};
+typedef LFDepthData_T<1> LFDepthData;
+typedef LFDepthData_T<10> LFDepthDataReader;
+
+typedef Z::smart_ptr<LFDepthData> LFDepthDataPtr;
+typedef Z::smart_ptr<LFDepthDataReader> LFDepthDataReaderPtr;
+
+Z_EVENT_DECLARE_MODEL(LEAF, LFDepthDataReader)
+Z_EVENT_DECLARE_MODEL(LEAF, LFDepthData)
+
+//======================================================================
+struct LEAF_Export LFTradeData  : public Z::Point
+{
+	LFTradeData();
+	virtual ~LFTradeData();
+
+	virtual std::string get_key() const { return _instr_key; }
+	virtual void set_key(const std::string& k_) {_instr_key = k_;}
+
+	LEAF_Export friend bool operator<<(ACE_OutputCDR& strm, const LFTradeData& d_);
+	LEAF_Export friend bool operator>>(ACE_InputCDR& strm, LFTradeData& d_);
+	///Writes data in csv format
+	LEAF_Export friend std::ostream& operator<<(std::ostream& os, const LFTradeData& d_);
+	///Reads data in csv format
+	void from_csv_vec(const std::vector<const char*>& v_);
+
+	std::string as_string() const;
+
+	std::string _instr_key;
+	long		_cqg_InstrumentID;
+
+	TC_pqp		_trade;
+	double		_p_vol;  // total volume on that price level
+
+	static const char* header();
+};
+typedef Z::smart_ptr<LFTradeData> LFTradeDataPtr;
+
+Z_EVENT_DECLARE_MODEL(LEAF, LFTradeData)
+
+//======================================================================
+
+
+#endif /*LF_MARKET_DATA_H*/

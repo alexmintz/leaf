@@ -1,0 +1,362 @@
+/*
+*
+*	© Copyright 2003-2006 by TAF Co. All rights reserved.
+*
+*/
+#ifndef P_FORMAT_H
+#define P_FORMAT_H
+
+#include "znet/TCDefs.h"
+#include "vc/TC_Color.h"
+#include "leaf/LFData.h"
+#include <iomanip>
+
+
+namespace P_FORMAT
+{
+	struct sub_strategy_id {
+		std::string operator()(long p_) const 
+		{
+			std::ostringstream os;
+			if(p_ < 0)
+				os << 'B'; //Booking
+			else if(p_ == 2)
+				os << 'A'; //Auto
+			else if (p_ == 3)
+				os << 'X'; // eXternal
+			else
+				os << 'M'; // Manual
+			return os.str();
+		}
+	};
+	struct price {
+		std::string operator()(double p_) const 
+		{
+			std::ostringstream os;
+			double p = TCCompare::is_NaN(p_)?0:p_;
+			os << p;
+			return os.str();
+		}
+	};
+	struct price_precision_0 {
+		std::string operator()(double p_) const 
+		{
+			std::ostringstream os;
+			os << std::fixed << std::setprecision(0) << p_;
+			return os.str();
+		}
+	};
+	struct price_precision_2 {
+		std::string operator()(double p_) const 
+		{
+			std::ostringstream os;
+			os << std::fixed << std::setprecision(2) << p_;
+			return os.str();
+		}
+	};
+	struct pqp {
+		std::string operator()(TC_pqp pqp_) const 
+		{
+			std::ostringstream os;
+			double p = TCCompare::is_NaN(pqp_._p)?0:pqp_._p;
+			os << pqp_._q << "@" << std::fixed << std::setprecision(2) << p;
+			return os.str();
+		}
+	};
+	struct time {
+		std::string operator()(ACE_Time_Value p_) const 
+		{
+			std::ostringstream os;
+			TCTimestamp ts(p_);
+			os << ts.c_str();
+			return os.str();
+		}
+	};
+	struct tcdate {
+		std::string operator()(TCDate p_) const 
+		{
+			return p_.as_string();
+		}
+	};
+	struct side { 
+		std::string operator()(LF::Side v_) const 
+		{
+			switch(v_)
+			{
+				case LF::s_BUY: return "L";
+				case LF::s_SELL: return "S";
+				case LF::s_UNKNOWN: return "";
+			};
+			return "";
+		} 
+	};
+	struct side_p { 
+		std::string operator()(const LFSide* s_) const 
+		{
+			if(s_ == 0)
+				return "";
+			switch(s_->value())
+			{
+				case LF::s_BUY: return "B";
+				case LF::s_SELL: return "S";
+				case LF::s_UNKNOWN: return "";
+			};
+			return "";
+		} 
+	};
+	struct slope_side { 
+		std::string operator()(LF::Side v_) const 
+		{
+			switch(v_)
+			{
+				case LF::s_BUY: return "D";
+				case LF::s_SELL: return "U";
+				case LF::s_UNKNOWN: return "";
+			};
+			return "";
+		} 
+	};
+	struct slope_side_p { 
+		std::string operator()(const LFSide* s_) const 
+		{
+			if(s_ == 0)
+				return "";
+			switch(s_->value())
+			{
+				case LF::s_BUY: return "Down";
+				case LF::s_SELL: return "Up";
+				case LF::s_UNKNOWN: return "";
+			};
+			return "";
+		} 
+	};
+	struct cluster_side_p { 
+		std::string operator()(const LFSide* s_) const 
+		{
+			if(s_ == 0)
+				return "";
+			switch(s_->c_value())
+			{
+				case LF::s_BUY: return "Down";
+				case LF::s_SELL: return "Up";
+				case LF::s_UNKNOWN: return "";
+			};
+			return "";
+		} 
+	};
+
+
+	struct fill_status { 
+		std::string operator()(LF::FillStatus v_) const 
+		{
+			switch(v_){
+				case LF::fsNormal:		return "Normal";
+				case LF::fsCanceled:	return "Cancelled";
+				case LF::fsModified:	return "Modified";
+				case LF::fsBusted:		return "Busted";
+			};
+			return "";
+		} 
+	};
+	struct order_status { 
+		std::string operator()(LF::OrderStatus v_) const 
+		{
+			switch(v_){
+				case LF::osNotSent:		return "Not Sent";
+				case LF::osInClient:	return "In Client";
+				case LF::osInTransit:	return "In Transit";
+				case LF::osRejectGW:	return "Reject GW";
+				case LF::osInOrderBook: return "In OrderBook";
+				case LF::osInTransitTimeout: return "In Transit Timeout";
+				case LF::osRejectFCM:	return "Reject FCM";
+				case LF::osExpired:		return "Expired";
+				case LF::osInCancel:	return "In Cancel";
+				case LF::osInModify:	return "In Modify";
+				case LF::osCanceled:	return "Canceled";
+				case LF::osFilled:		return "Filled";
+				case LF::osParked:		return "Parked";
+				case LF::osDisconnected:return "Disconnected";
+				case LF::osContingent:	return "Contingent";
+				case LF::osActiveAt:	return "Active At";
+				default:
+					return "";
+			};
+			return "";
+		} 
+	};
+	struct order_type { 
+		std::string operator()(LF::OrderType v_) const 
+		{	switch(v_){
+				case LF::otMarket: return "MKT";
+				case LF::otLimit: return "LMT";
+				case LF::otStop: return "STP";
+				case LF::otStopLimit: return "STL";
+				case LF::otUndefined: return "UND";
+				default:
+					return "";
+				};
+				return "";
+		} 
+	};
+	struct position_status { 
+		std::string operator()(LF::PositionStatus v_) const 
+		{
+			switch(v_){
+				case LF::psUndefined:	return "Undefined";
+				case LF::psActive:		return "Active";
+				case LF::psSuspended:	return "Suspended";
+				case LF::psCutLoss:		return "CutLoss";
+			};
+			return "";
+		} 
+	};
+	struct position_action { 
+		std::string operator()(LF::PositionAction v_) const 
+		{
+			switch(v_){
+				case LF::paUndefined:	return "";
+
+				case LF::paPreEnter:	return "entr";
+				case LF::paEnter:		return "ENTR";
+
+				case LF::paPreAverage:	return "avrg";
+				case LF::paAverage:		return "AVRG";
+
+				case LF::paPreCutLoss:	return "cutl";
+				case LF::paCutLoss:		return "CUTL";
+
+				case LF::paPreProfit:	return "prft";
+				case LF::paProfit:		return "PRFT";
+				
+				case LF::paPreTrendEnd:	return "tend";
+				case LF::paTrendEnd:	return "TEND";
+			};
+			return "";
+		} 
+	};
+
+};
+
+namespace P_COLOR
+{
+/*
+	struct highlight_string{ 
+		void operator()(const TAO::String_Manager& v_, COLORREF& clrText_, COLORREF& clrTextBk_) const 
+		{
+			if(v_[0] == '\0')
+				return;
+			clrTextBk_ = TC_COL::Red;
+			clrText_ = TC_COL::PowderBlue;
+		} 
+	};
+*/
+	struct neg_red { 
+		void operator()(double v_, COLORREF& clrText_, COLORREF& clrTextBk_) const 
+		{
+			if(v_ < 0)
+				clrText_ = TC_COL::Red;
+			else
+				clrText_ = TC_COL::Blue;
+		} 
+	};
+	struct min_red { 
+		void operator()(double v_, COLORREF& clrText_, COLORREF& clrTextBk_) const 
+		{
+			if(v_ < 4 && v_ > 0)
+				clrText_ = TC_COL::Red;
+			else if(v_ < 6)
+				clrText_ = TC_COL::Orange;
+			else
+				clrText_ = TC_COL::Blue;
+		} 
+	};
+	struct position_action { 
+		void  operator()(LF::PositionAction v_, COLORREF& clrText_, COLORREF& clrTextBk_) const 
+		{	switch(v_){
+				case LF::paPreEnter:
+				case LF::paEnter: 
+					clrText_ = TC_COL::Blue;
+					break;
+				case LF::paPreAverage: 
+				case LF::paAverage: 
+					clrTextBk_ = TC_COL::Linen;
+					clrText_ = TC_COL::Blue;
+					break;
+				case LF::paPreCutLoss:
+				case LF::paCutLoss: 
+					clrTextBk_ = TC_COL::Red;
+					clrText_ = TC_COL::White;
+					break;
+				case LF::paPreProfit: 
+				case LF::paProfit: 
+					clrText_ = TC_COL::Green;
+					break;
+				case LF::paPreTrendEnd: 
+				case LF::paTrendEnd: 
+					clrText_ = TC_COL::Green;
+					break;
+				default:
+					break;
+				};
+		} 
+	};
+	struct scratch_count { 
+		scratch_count():_v(-1){}
+		void  operator()(long v_, COLORREF& clrText_, COLORREF& clrTextBk_) const 
+		{	
+//			clrText_ = TC_COL::Blue;
+
+			if(_v == -1)
+			{
+				clrTextBk_ = TC_COL::LightGreen;
+				if(v_ != 0)
+					_v = v_;
+				return;
+			}
+			
+			if(v_ <= 0)
+			{
+				clrTextBk_ = TC_COL::Red;
+				_v = -1;
+			}
+			else if(v_ < 3)
+				clrTextBk_ = TC_COL::Yellow;
+			else
+				clrTextBk_ = TC_COL::LightGreen;
+		} 
+		mutable long _v;
+	};
+
+/*
+	struct position_state { 
+		void  operator()(CLD::PositionState v_, COLORREF& clrText_, COLORREF& clrTextBk_) const 
+		{	switch(v_){
+				case CLD::ps_BALANCED: 
+					clrText_ = TC_COL::Blue;
+					break;
+				case CLD::ps_EXCESS: 
+					clrText_ = TC_COL::Red;
+					break;
+				case CLD::ps_FULL: 
+					clrText_ = TC_COL::Blue;
+					break;
+				case CLD::ps_UNKNOWN: 
+				case CLD::ps_INVERTED: 
+					clrTextBk_ = TC_COL::Red;
+					clrText_ = TC_COL::White;
+					break;
+				case CLD::ps_UNBALANCED: 
+					clrText_ = TC_COL::Green;
+					break;
+				case CLD::ps_ZERO: 
+					clrText_ = TC_COL::Black;
+					break;
+				default:
+					break;
+				};
+		} 
+	};
+*/
+};
+//--------------------------------------------------------
+#endif //P_FORMAT_H

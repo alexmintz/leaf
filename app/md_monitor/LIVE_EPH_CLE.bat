@@ -1,0 +1,1 @@
+START "LIVE EPH : CLE" md_monitord.exe -config %ZCONFIGDIR%\md_monitor_lv_eph_cle.cfg

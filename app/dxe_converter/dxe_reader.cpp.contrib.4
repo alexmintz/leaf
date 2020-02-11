@@ -1,0 +1,328 @@
+/*
+*
+*	© Copyright 2012 by TAF Co. All rights reserved.
+*
+*/
+
+#include "dxe_reader.h"
+
+int main(int argc, char* argv[])
+{
+
+	try {
+		Z::add_command_line_option("d", "DXE csv file for processing");
+		Z::add_command_line_option("trades_only", "Process trades only");
+		Z::add_command_line_option("depth_only", "Process depth only");
+		Z::init(argc, argv);
+
+		std::string dxe_data = Z::get_setting("COMMAND:d");
+		if(!dxe_data.empty())
+			TCSettings::set_resource("BMTS:ice_dxe_data", dxe_data);
+
+		TCFiler::instance()->set_mode(ios::app);
+		BMTS<LFDepthDataReader>::instance()->_out_file = true;
+		BMTS<LFTradeData>::instance()->_out_file = true;
+		BMTS<LFVWAPData>::instance()->_out_file = true;
+
+		BMModel::instance()->subscribe<LFDepthDataReader>();
+		BMModel::instance()->subscribe<LFTradeData>();
+		BMModel::instance()->subscribe<LFVWAPData>();
+		BMModel::instance()->open();
+
+		DXEReader rd(dxe_data, Z::get_setting_bool("COMMAND:depth_only"), Z::get_setting_bool("COMMAND:trades_only"));
+		rd.run();
+
+		BMModel::instance()->close();
+
+		Z::fini();
+	}
+	catch(Z::Exception& e)
+	{
+		std::cout << e << std::endl;
+		return -1;
+	}
+	return 0;
+}
+
+DXEReader::DXEReader(const std::string& file_, bool depth_only_, bool trades_only_)
+: BMReaderBase(file_),
+  _worker(1, "worker"),
+  _ticker(t_UNKNOWN),
+  _trades_only(trades_only_),
+  _depth_only(depth_only_),
+  _repeat_bbo(TCSettings::get_bool("LFModel:repeat_bbo", false)),
+  _vwap_over(false),
+  _micro_sec_depth(1)
+{
+	_trace_r.init(Z::get_setting("BMTS:DXEReader:back_trace", "20120315_160333:20120315_160335"));
+	_worker.hwm(100);
+	_worker.lwm(10);
+	_worker.open();
+	_worker.register_handler (this, &DXEReader::process);
+}
+DXEReader::~DXEReader()
+{
+	_worker.unregister_handler<ACE_Message_Block>();
+}
+void DXEReader::run()
+{
+	while(!step());
+}
+
+void DXEReader::process_hdr(ACE_Message_Block* mb_)
+{
+}
+void DXEReader::process_eof(bool full_)
+{
+	_worker.close(false);
+	_worker.wait();
+}
+
+
+ACE_Time_Value DXEReader::get_ace_time(const std::string& ts_, bool& same_day_)
+{
+	std::vector<std::string> v;
+	tc_token_vec(ts_,v,'-');
+
+	tm ttm;
+	ttm.tm_mday = atoi(v[0].c_str());
+	std::string m("JFMAMJJASOND");
+	if(v[1][0] == 'J')
+	{
+		if(v[1] == "Jan")
+			ttm.tm_mon	= 0;
+		else if(v[1] == "Jun")
+			ttm.tm_mon	= 5;
+		else
+			ttm.tm_mon	= 6;
+	}
+	else if(v[1][0] == 'A')
+	{
+		if(v[1][1] == 'p')
+			ttm.tm_mon	= 3;
+		else
+			ttm.tm_mon	= 7;
+	}
+	else if(v[1][0] == 'M')
+	{
+		if(v[1] == "May")
+			ttm.tm_mon	= 4;
+		else if(v[1] == "Mar")
+			ttm.tm_mon	= 2;
+	}
+	else
+		ttm.tm_mon	= (int)(m.find(v[1][0]));
+
+	if(ttm.tm_mon < 0 || ttm.tm_mon > 11)
+		return ACE_Time_Value::zero;
+
+	ttm.tm_year = atoi(v[2].c_str()) - 1900;
+	ttm.tm_hour = atoi(ts_.substr(12, 2).c_str());
+	ttm.tm_min	= atoi(ts_.substr(15,2).c_str());
+	ttm.tm_sec	= atoi(ts_.substr(18,2).c_str());
+	ttm.tm_isdst= -1;
+
+	long usec = 0;
+	if (ts_.length() > 21)	
+		usec = atoi(ts_.substr(21).c_str())*1000;
+	TCDateTime tcdt(ttm);
+	ACE_Time_Value ret_atv = tcdt.get_ace_from_gmt_time(usec);
+	TCDateTime tcdt_converted(ret_atv);
+	int hour = tcdt_converted.get_time().hour();
+	same_day_ = (tcdt.get_date() == tcdt_converted.get_date() && hour < 17);
+	return ret_atv;
+}
+void DXEReader::process_rec(ACE_Message_Block* mb_)
+{
+	ACE_Message_Block* amb = mb_->clone();
+	_worker.send(amb);
+}
+bool DXEReader::make_key(const std::string& s_, std::string& key_, const ACE_Time_Value& tv_)
+{
+	std::string front, tomorrow;
+
+	if (s_[11] != '!')
+	{
+		key_.clear();
+		return false;
+	}
+	TCDateTime	dt(tv_);
+	TCDate		d = dt.get_date();
+
+	TCJulianDate jd(d); ++jd;
+	TCDate		t = jd.get_TCDate();
+
+
+	_base_symbol = LFSecurityMaster::instance()->CQG_SEC;
+	std::string ss = s_.substr(0, 2);
+	if (ss == LFSecurityMaster::instance()->DX_EXCH)
+	{
+		_base_symbol += LFSecurityMaster::instance()->DXE;
+		front = LFSecurityMaster::instance()->get_dxe(d);
+		tomorrow = LFSecurityMaster::instance()->get_dxe(t);
+		_ticker = t_DXE;
+	}
+	else if (ss == LFSecurityMaster::instance()->QO_EXCH)
+	{
+		_base_symbol += LFSecurityMaster::instance()->QO;
+		front = LFSecurityMaster::instance()->get_brn(d);
+		tomorrow = LFSecurityMaster::instance()->get_brn(t);
+		_ticker = t_BRN;
+	}
+	else if (ss == LFSecurityMaster::instance()->RF_EXCH)
+	{
+		_base_symbol += LFSecurityMaster::instance()->RFE;
+		front = LFSecurityMaster::instance()->get_rfe(d);
+		tomorrow = LFSecurityMaster::instance()->get_rfe(t);
+		_ticker = t_BRN;
+	}
+
+	else
+	{
+		_base_symbol = "bad symbol " + s_.substr(0, 3);
+		_ticker = t_UNKNOWN;
+		Z::throw_error(_base_symbol.c_str());
+	}
+
+
+	key_ = _base_symbol + s_.substr(6, 1) + s_.substr(9, 2);
+
+	if(front == key_ || key_ == tomorrow)
+		return true;
+
+	key_.clear();
+	return false;
+}
+void DXEReader::process(ACE_Message_Block* mb_)
+{
+	auto_ptr<ACE_Message_Block> m(mb_);
+	std::string s(m->base(), m->wr_ptr() - m->rd_ptr());
+	s.erase(remove(s.begin(), s.end(), '\"'), s.end());
+
+	std::vector<std::string> v;
+	tc_token_vec(s, v, ',');
+
+	bool same_day = true;
+	const ACE_Time_Value tv = get_ace_time(v[0], same_day);
+
+	if (!same_day)
+		return;
+	
+	long sec_id = atol(v[1].c_str());
+
+	LFDepthDataReader& prev_depth = _d_map[sec_id].first;
+	LFDepthDataReader& prev_sent = _d_map[sec_id].second;
+
+	if (prev_depth._instr_key.empty())
+	{
+		if (!make_key(v[2], prev_depth._instr_key, tv))
+			return;
+
+		prev_depth._tick_size = LFSecurityMaster::instance()->get_tick_size();
+		prev_depth._tick_value = LFSecurityMaster::instance()->get_tick_value();
+		//prev_depth._t = tv;
+	}
+
+	double price = ACE_OS::strtod(v[4].c_str(), 0);
+	double qty = ACE_OS::strtod(v[5].c_str(), 0);
+
+	if (price == 0)
+		return;
+
+	bool good_price = prev_depth._bid[0].good() && prev_depth._ask[0].good() && TCComparePrice::diff(prev_depth._ask[0]._p, prev_depth._bid[0]._p) > 0;
+	bool diff_price = TCComparePrice::diff(prev_sent._ask[0]._p, prev_depth._ask[0]._p) != 0 || TCComparePrice::diff(prev_sent._bid[0]._p, prev_depth._bid[0]._p) != 0;
+
+	
+	if (v[3] == "T" && !_depth_only)
+	{
+		if (v[6][0] != '\0')
+		{
+			Z::report_alert("sec_id[%d] trade time IMPLIED TRADE flag %s",
+				sec_id, v[0].c_str(), v[6].c_str());
+			return;
+		}
+
+		//-----------------------------------------------------------------
+		// VWAP PROCESSING
+
+		TCDateTime tcdt(tv);
+		if (!_vwap_over &&
+			tcdt.get_time().hour() == 14 &&
+			tcdt.get_time().minute() > 27)
+		{
+			_vm[_lftrade._instr_key][price] += qty;
+			if (tcdt.get_time().minute() > 29)
+			{
+				//compute vwap
+				for (VWAPMap::iterator it = _vm.begin(); it != _vm.end(); ++it)
+				{
+					double vwap = 0;
+					double tot_qty = 0;
+					PQPMap& pqp = (*it).second;
+					for (PQPMap::iterator ki = pqp.begin(); ki != pqp.end(); ++ki)
+					{
+						tot_qty += ki->second;
+						vwap += ki->first*ki->second;
+					}
+					if (tot_qty == 0)
+						vwap = 0;
+					else
+						vwap /= tot_qty;
+					// report vwap for lftrade._instr_key
+					BMModel::instance()->send(new LFVWAPData((*it).first, tv, vwap));
+				}
+				_vwap_over = true;
+			}
+		}
+
+		// VWAP PROCESSING
+		//-----------------------------------------------------------------
+
+
+		_lftrade._instr_key = prev_depth._instr_key;
+		_lftrade._trade.reset(price, qty);
+		_lftrade._t = tv;
+		BMModel::instance()->send(new LFTradeData(_lftrade));
+		return;
+	}
+	if (_trades_only)
+		return;
+	
+	if (good_price)
+	{
+		if (prev_depth._t == tv) //same group
+		{
+			if (diff_price)
+			{
+				auto_ptr<LFDepthDataReader> ad(new LFDepthDataReader(prev_depth));
+				ad->_t.usec(tv.usec() + _micro_sec_depth); // add microsec to depth group time
+				++_micro_sec_depth;
+				BMModel::instance()->send(ad.release());
+				prev_sent = prev_depth;
+			}
+		}
+		else // new group
+		{
+			if (diff_price)
+			{
+				if (_micro_sec_depth > 1)
+				{
+					auto_ptr<LFDepthDataReader> ad(new LFDepthDataReader(prev_depth));
+					ad->_t.usec(prev_depth._t.usec() + _micro_sec_depth); // add microsec to depth group time
+					BMModel::instance()->send(ad.release());
+				}else
+					BMModel::instance()->send(new LFDepthDataReader(prev_depth));
+				prev_sent = prev_depth;
+			}
+			_micro_sec_depth = 1;
+		}
+	}
+	prev_depth._t = tv;
+
+	if (v[3] == "B")
+		prev_depth._bid[0].reset(price, qty);
+	else if (v[3] == "O")
+		prev_depth._ask[0].reset(price, qty);
+}
+//======================================================================
+

@@ -1,0 +1,95 @@
+/*
+*
+*	© Copyright 2011 by TAF Co. All rights reserved.
+*
+*/
+
+#ifndef LF_STRATEGY_H
+#define LF_STRATEGY_H
+
+#include "znet/ZNet.h"
+#include "znet/BMStrategy.h"
+#include "leaf/LFData.h"
+#include "leaf/LFSignal_HighLow.h"
+#include "leaf/LFPosition.h"
+
+//======================================================================
+namespace LF
+{
+	LEAF_Export void backup_all_bmts(BMTS_BackupMap& b_map_);
+};
+//======================================================================
+class LEAF_Export LFStrategy : public BMStrategy
+{
+public:
+	LFStrategy(	const std::string& leader_, 
+				const std::string& follower_,
+				LFRunEvent* rdata_ = 0);
+	virtual ~LFStrategy();
+	virtual int open();
+	virtual void thr_close();
+	virtual bool run();
+
+	void process_l_depth(LFDepthDataPtr* d_);
+	void process_f_depth(LFDepthDataPtr* d_);
+	void process_request(LFStrategyRequestPtr* d_);
+
+	void process_l_trade(LFTradeDataPtr* d_);
+	void process_f_trade(LFTradeDataPtr* d_);
+	
+	bool process_missed_tick(const ACE_Time_Value& t_);
+	void process_missed_ticks(const ACE_Time_Value& t_);
+	void set_i_count();
+
+	void report_run();
+	bool in_trading_time(const ACE_Time_Value& t_);
+
+private:
+	friend class LFSignal_HighLow;
+
+	bool change_run();
+	bool process_inputs_inactive();
+	bool set_run_data();
+	void run_strategy();
+	void signal();
+	void strategy();
+
+	void do_profit_loss();
+	void restore_position();
+	void save_position();
+
+	std::string _leader;
+	std::string _follower;
+	std::string _key;
+
+	ACE_Time_Value _first_run;
+
+	auto_ptr<LFPosition>	_pos;
+	auto_ptr<LFRunStats>	_stats;
+
+	LFRunEvent*				_run_event;
+
+	LFStrategyState	_s;
+	LFPositionData _last_pd;
+
+	LFSignalList _signals;
+	LFSignalPtr _trading_signal;
+	
+	bool	_leader_on;
+	bool	_rerun;
+
+	double _cut_loss;
+	double _take_profit_ticks;
+	tc_vector<double> _strong_qty_set;
+	double _strong_qty;
+	double	_position_limit;
+
+	ACE_Time_Value	_suspend_at;
+	std::string		_position_file;
+
+	TCTime	_no_new_after;
+	TCTime	_no_new_before;
+};
+
+//======================================================================
+#endif /*LF_STRATEGY_H*/

@@ -1,0 +1,129 @@
+/*
+*
+*	© Copyright 2011 by TAF Co. All rights reserved.
+*
+*/
+
+#ifndef LF_STRATEGY_H
+#define LF_STRATEGY_H
+
+#include "znet/ZNet.h"
+#include "znet/BMStrategy.h"
+#include "znet/BMReader.h"
+#include "leaf/LFData.h"
+#include "leaf/LFSignal_HighLow.h"
+#include "leaf/LFPosition.h"
+
+//======================================================================
+namespace LF
+{
+	LEAF_Export void backup_all_bmts(BMTS_BackupMap& b_map_);
+};
+//======================================================================
+class VWAPReader : public BMReaderQueue
+{
+public:
+	VWAPReader(const std::string& tag_ = Z::get_setting("LFStrategy:follower"))
+		: BMReaderQueue(1, BMTS<LFVWAPData>::instance(), tag_, new BMEventReader_T<LFVWAPData>(*this)),
+		_vwap(0)
+	{
+		register_handler(this, &VWAPReader::process_vwap);
+	}
+	virtual ~VWAPReader()
+	{
+		unregister_handler<LFDepthData>();
+	}
+	virtual void process_vwap(LFVWAPData* edp_);
+	double get_vwap() const { return _vwap; }
+private:
+	double _vwap;
+};
+//======================================================================
+
+class LEAF_Export LFStrategy : public BMStrategy
+{
+public:
+	LFStrategy(	const std::string& leader_, 
+				const std::string& follower_,
+				LFRunEvent* rdata_ = 0);
+	virtual ~LFStrategy();
+	virtual int open();
+	virtual void thr_close();
+	virtual bool run();
+
+	void process_l_depth(LFDepthDataPtr* d_);
+	void process_f_depth(LFDepthDataPtr* d_);
+	void process_request(LFStrategyRequestPtr* d_);
+
+	void process_l_trade(LFTradeDataPtr* d_);
+	void process_f_trade(LFTradeDataPtr* d_);
+	
+	bool process_missed_tick(const ACE_Time_Value& t_);
+	void process_missed_ticks(const ACE_Time_Value& t_);
+	void set_i_count();
+
+	//AK TODO
+	void process_stratpos(LFInfo_PositionPtr* d_);
+	LFInfo_PositionPtr	_m_signal;
+	LFPositionData& pos_data() const { return _pos->data(); }
+
+	void report_run();
+	void load_vwap(const std::string& under_, double& last_close_);
+	bool in_trading_time(const ACE_Time_Value& t_);
+
+private:
+	friend class LFSignal_HighLow;
+
+	bool change_run();
+	bool process_inputs_inactive();
+	bool set_run_data();
+	void run_strategy();
+	void signal();
+	void strategy();
+
+	void do_profit_loss();
+	void restore_position();
+	void save_position();
+
+	std::string _leader;
+	std::string _follower;
+	std::string _key;
+
+	ACE_Time_Value _first_run;
+
+	auto_ptr<LFPosition>	_pos;
+	auto_ptr<LFRunStats>	_stats;
+
+	LFRunEvent*				_run_event;
+
+	LFStrategyState	_s;
+	LFPositionData _last_pd;
+
+	LFSignalList _signals;
+	LFSignalPtr _trading_signal;
+	
+	bool	_leader_on;
+	bool	_rerun;
+	bool	_report_stratpos;
+
+	double _cut_loss;
+	bool	_cut_loss_suspend;
+	double _cut_loss_total;
+	double _take_profit_ticks;
+	
+	tc_vector<double> _strong_qty_set;
+	double _strong_qty;
+	double	_position_limit;
+
+	TCTime			_suspend_at;
+	TCTime			_resume_at;
+	std::string		_position_file;
+
+	TCTime	_no_new_after;
+	TCTime	_no_new_before;
+
+//	VWAPReader _r_follower;
+};
+
+//======================================================================
+#endif /*LF_STRATEGY_H*/

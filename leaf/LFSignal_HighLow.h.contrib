@@ -1,0 +1,192 @@
+/*
+*
+*	© Copyright 2011 by TAF Co. All rights reserved.
+*
+*/
+
+#ifndef LF_SIGNAL_HIGHLOW_H
+#define LF_SIGNAL_HIGHLOW_H
+
+#include "znet/ZNet.h"
+#include "leaf/LFSignal.h"
+
+//======================================================================
+class LEAF_Export LFSignal_HighLow : public LFSignal_Market
+{
+public:
+	LFSignal_HighLow(const LFStrategy& strat_, LFMomentumData& d_, LFMomentumData* cor_, const std::string& type_ = "HighLow");
+	virtual ~LFSignal_HighLow();
+
+	virtual void trading();
+	virtual void close();
+
+	virtual void process_request(const LFStrategyRequest& r_);
+
+protected:
+	LFMomentumData* _cor;
+	double		_pre_avg_ticks;
+
+	double		_box_E_charge_dir_roll;
+	double		_box_E_charge_dir_bp;
+
+	long				_E_on_accel_tnt;
+	tc_range<double>	_E_accel_peak;
+	tc_range<double>	_E_accel_bounce;
+	tc_range<double>	_E_tnt_band;
+	tc_range<double>	_E_tnt_peak;
+	tc_range<double>	_E_tnt_bounce;
+	tc_range<double>	_E_tnt_test;
+	double				_E_accel_max_risk;
+	double				_E_tnt_approach_factor;
+	double				_E_tnt_max_band;
+	double				_E_tnt_min_peak;
+	double				_E_tnt_neutral_pias;
+	long				_E_tnt_inband_back;
+	bool				_E_tnt_no_support;
+	bool				_E_tnt_support;
+	long				_E_tnt_min_scale;
+	long				_tnt_min_scale;
+	bool				_E_tnt_validate;
+	bool				_E_tnt_none_busted;
+	double				_E_tnt_success_ticks;
+	bool				_E_accel_pias_allied;
+	bool				_E_accel_reenter_any;
+	bool				_X_common;
+	long				_X_approach_min_scale;
+	long				_X_tntz_min_scale;
+	double				_X_approach_factor;
+	double				_X_approach_pct;
+	double				_X_tntz_pct;
+	tc_range<double>	_X_tntz_test;
+
+
+	bool		_box_E_on_sharp;
+	tc_range<double>	_box_E_min_p_charge;
+	double		_box_E_repeat_p_slope;
+	double		_box_E_repeat_p_slope_tip;
+	double		_box_E_repeat_p_slope_child;
+	double		_box_E_repeat_child;
+	double		_box_E_repeat_vol;
+	double		_box_E_repeat_p_slope_peak;
+	bool 		_box_E_repeat_p_slope_peak_confirm;
+	bool 		_box_E_repeat_p_slope_peak_no_enter;
+	double		_box_E_repeat_p_slope_shadow;
+	double		_box_E_repeat_p_slope_stitch;
+	bool		_box_E_report_shadow;
+	bool		_box_E_report_stitch;
+	bool		_box_E_report_slope_peak;
+	double		_box_E_repeat_charge;
+	bool		_box_E_repeat_stitch;
+	tc_vector<double>	_box_E_charge_exp_bounce_avg;
+	
+	tc_range<double> _box_E_diff_p_charge;
+	tc_range<double> _box_E_diff_t_charge;
+	double			 _box_E_diff_p_charge_micro;
+	tc_vector<double>  _box_E_diff_t_charge_micro;
+
+	tc_range<double> _box_E_repeat_slope_diff;
+	double			 _box_E_repeat_slope_diff_t;
+	double			 _box_E_repeat_slope_diff_p;
+	tc_range<double> _box_E_repeat_slope_diff_valid;
+
+	bool		_box_E_repeat_child_reverse;
+	bool		_box_E_report_failed_matches;
+
+	double		_box_E_b_len_charge_micro;
+
+	tc_vector<double>	_box_E_charge_q_multiplier;
+
+	double		_box_X_Profit_pct;
+	double		_box_X_cut_loss_ticks;
+
+	double		_box_X_Micro_pct;
+	double		_box_X_MicroConf_bpct;
+	double		_box_X_MicroConf_pct;
+	tc_vector<double>		_box_X_Micro_ticks;
+	double		_box_X_MicroConf_ticks;
+	bool		_box_X_contra_always;
+	bool		_box_X_BounceExact;
+	double		_box_report_profit;
+
+	bool		_box_E_ignore_loss;
+	bool		_box_E_ignore_loss_outside;
+	double		_box_E_avg_only_limit;
+	double		_box_E_avg_rr_factor;
+	tc_vector<double>	_box_E_cover_loss_pos_limit;
+	tc_vector<bool>		_box_E_old_average;
+	bool		_box_E_pias_allied;
+	double		_box_E_min_density;
+	bool		_box_E_pias_contra;
+	bool		_box_E_pias_shadow;
+	bool		_box_E_pias_shadow_stitch;
+
+	bool		_ematches_out_file;
+	bool		_trends_out_file;
+	bool		_tnt_out_file;
+
+	bool		_xmatch_out_file;
+
+	double		_exit_trend_end_pct;
+	bool		_box_E_repeat_force;
+	bool		_button_entry;
+
+	long		_enters_count;
+
+	double		_request_qty;
+
+	LFBox	_check_box;
+
+	LFBox	_enter_sharp_chargemicro;
+	LFBox	_sharp_charge;
+	LFBox	_sharp_charge_conf;
+	LFBox	_sharp_charge_bounce;
+
+	LFBox	_enter_sharp_charge;
+	LFBoxPair _enter_sharp_prev;
+
+	LFMatchPtrList _bias_enter_matches;
+
+	LFEntry	_entry;
+
+	typedef std::map<std::string, LFMatchMakerPtr>  LFMatchMakerMap;
+
+	void approach_exit();
+	void process_box();
+
+	void check_trend(size_t scale_);
+
+	bool report_trend(size_t scale_);
+
+	LFMatchPtr check_exit(const LFSide* pside_);
+	LFMatchPtr check_micro_exit(const LFSide* pside_);
+	void common_exit();
+	void close_bias_matches(const LFSide* side_);
+	void close_bias_match(LFMatch& m_);
+	void set_sharp_micro(const LFBox& bc_, const LFBounce& b_, const std::string& action_);
+	void enter_sharp_micro();
+	void enter_sharp();
+	void exit_sharp_bounce();
+	void process_request_sharp(const LFStrategyRequest& r_);
+	bool check_turn_n_test_scale(size_t scale_, size_t x_scale_, size_t x_pin_, std::string& comment_, size_t& tnt_bin_, long& inband_, LFTnt& tnt_);
+	bool validate_turn_n_test_scale(size_t scale_, size_t x_scale_, size_t x_pin_, std::string& comment_, long& inband_);
+	size_t find_turn_n_test_scale(size_t x_scale_, size_t x_pin_, std::string& comment_, size_t& tnt_bin_, long& inband_, LFTnt& tnt_);
+	bool enter_accel_tnt_i(size_t scale_);
+	void enter_accel_tnt(size_t till_scale_);
+
+	void reconcile_pos();
+	void exit_profit_loss();
+	void process_sharp();
+	void report_box(LFBox& to_, const LFBox& b_, const std::string& comment_ = "");
+
+	void update_matches();
+	bool update_match(LFMatch& match_);
+
+	void trade(const LFSide* t_side_, double q_, const std::string& comment_);
+	bool trade_exit(const LFSide* pos_side_, double pos_pct_, const std::string& comment_);
+
+	virtual const LFSide* cut_loss();
+
+};
+
+//======================================================================
+#endif /*LF_SIGNAL_HIGHLOW_H*/
